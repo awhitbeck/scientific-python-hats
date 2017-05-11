@@ -298,7 +298,7 @@ def fitModels(nx,ny,verbosity):
     models = []
     for cv, color in zip(range(0,1), colors):
         conv_model = build_conv_model(nx,ny)
-        if verbose:
+        if verbosity:
             conv_model.summary()
         early_stopping = EarlyStopping(monitor='val_loss', patience=100)
         jetImageGenerator = JetImageGenerator()
