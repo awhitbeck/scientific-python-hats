@@ -299,18 +299,47 @@ def fitModels(verbosity):
         models.append(conv_model)
     return models
 
+def saveModel(model,verbose):
+    # serialize model to JSON
+    model_json = model.to_json()
+    with open("model.json", "w") as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    model.save_weights("model.h5")
+    print("Saved model to disk")
+
+def loadModel(verbose):
+    # load json and create model
+    json_file = open('model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights("model.h5")
+    if verbose:
+        print("Loaded model from disk")
+    return loaded_model
+
+####################
+# Global Variables #
+####################
 nx = 30 # size of image in eta
 ny = 30 # size of image in phi
 xbins = np.linspace(-1.4,1.4,nx+1)
 ybins = np.linspace(-1.4,1.4,ny+1)
-def main(open_models,train_models,debug,verbose):
+def main(open_models,train_models,save_models,debug,verbose):
     inputs = getInputs()
     params = openFiles(inputs)
     df = convertToPandas(params,verbose)
     conv_model = build_conv_model(nx,ny)
     if verbose:
         conv_model.summary()
-    models = fitModels(verbose)
+    if open_models:
+        models = loadModel(verbose)
+    else:
+        models = fitModels(verbose)
+    if save_models and len(models)>=1:
+        saveModel(models[0],verbose)
     return
 
 if __name__ == '__main__':
@@ -322,9 +351,9 @@ Open files and train models for maching learning (ML) based JEC.""",
 And those are the options available. Deal with it.
 """)
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-o", "--open_models", help="load the models from a file", type=str, default="")
+    group.add_argument("-o", "--open_models", help="load the models from a file", action"store_true")
     group.add_argument("-t", "--train_models", help="refit the models", action="store_true")
-    #parser.add_argument("ENDpath", help="The location of the file")
+    parser.add_argument("-s", "--save_models", help="save the models and the weights", action="store_true")
     parser.add_argument("-d","--debug", help="Shows extra information in order to debug this program.",
                         action="store_true")
     parser.add_argument("-v","--verbose", help="print out additional information", action="store_true")
@@ -336,7 +365,7 @@ And those are the options available. Deal with it.
          print 'Argument List:', str(sys.argv)
          print "Argument ", args
 
-    main(open_models=args.open_models,train_models=args.train_models,debug=args.debug,verbose=args.verbose)
+    main(open_models=args.open_models,train_models=args.train_models,save_models=args.save_models,debug=args.debug,verbose=args.verbose)
 
 
 
