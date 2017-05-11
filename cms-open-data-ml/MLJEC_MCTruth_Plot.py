@@ -1,55 +1,55 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from keras import backend as K
+from MLJEC_MCTruth_Model import rotate_and_reflect, JetImageGenerator
+from itertools import cycle
+from ipywidgets import FloatProgress
+from IPython.display import display
+from sklearn.metrics import roc_curve, auc
 
-def prepare_jet_images(pd,verbose):
+lw=2
+
+def prepare_jet_images(params, verbose):
     # now let's prepare some jet images
     if verbose:
         print params['TT'].dtype.names
 
-        df_dict_jet = {}
-        df_dict_jet['TT'] = pd.DataFrame(params['TT'],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
-        df_dict_jet['TT'] = df_dict_jet['TT'].drop_duplicates()
-        df_dict_jet['TT'] =  df_dict_jet['TT'][(df_dict_jet['TT'].jet_pt_ak7 > 200) & (df_dict_jet['TT'].jet_pt_ak7 < 500) &  (df_dict_jet['TT'].jet_isW_ak7==1)]
+    df_dict_jet = {}
+    df_dict_jet['TT'] = pd.DataFrame(params['TT'],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
+    df_dict_jet['TT'] = df_dict_jet['TT'].drop_duplicates()
+    df_dict_jet['TT'] =  df_dict_jet['TT'][(df_dict_jet['TT'].jet_pt_ak7 > 200) & (df_dict_jet['TT'].jet_pt_ak7 < 500) &  (df_dict_jet['TT'].jet_isW_ak7==1)]
 
-        df_dict_cand = {}
-        df_dict_cand['TT'] = pd.DataFrame(params['TT'],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
-        df_dict_cand['TT'] =  df_dict_cand['TT'][(df_dict_cand['TT'].jet_pt_ak7 > 200) & (df_dict_cand['TT'].jet_pt_ak7 < 500) &  (df_dict_cand['TT'].jet_isW_ak7==1)]
+    df_dict_cand = {}
+    df_dict_cand['TT'] = pd.DataFrame(params['TT'],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
+    df_dict_cand['TT'] =  df_dict_cand['TT'][(df_dict_cand['TT'].jet_pt_ak7 > 200) & (df_dict_cand['TT'].jet_pt_ak7 < 500) &  (df_dict_cand['TT'].jet_isW_ak7==1)]
 
 
-        for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
-            df_dict_jet[QCDbin] = pd.DataFrame(params[QCDbin],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
-            df_dict_jet[QCDbin] = df_dict_jet[QCDbin].drop_duplicates()
-            df_dict_jet[QCDbin] =  df_dict_jet[QCDbin][(df_dict_jet[QCDbin].jet_pt_ak7 > 200) & (df_dict_jet[QCDbin].jet_pt_ak7 < 500) &  (df_dict_jet[QCDbin].jet_isW_ak7==0)]
-            # take every 20th jet just to make the training faster and have a sample roughly the size of W jets
-            df_dict_jet[QCDbin] = df_dict_jet[QCDbin].iloc[::20, :]
+    for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
+        df_dict_jet[QCDbin] = pd.DataFrame(params[QCDbin],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
+        df_dict_jet[QCDbin] = df_dict_jet[QCDbin].drop_duplicates()
+        df_dict_jet[QCDbin] =  df_dict_jet[QCDbin][(df_dict_jet[QCDbin].jet_pt_ak7 > 200) & (df_dict_jet[QCDbin].jet_pt_ak7 < 500) &  (df_dict_jet[QCDbin].jet_isW_ak7==0)]
+        # take every 20th jet just to make the training faster and have a sample roughly the size of W jets
+        df_dict_jet[QCDbin] = df_dict_jet[QCDbin].iloc[::20, :]
     
-            df_dict_cand[QCDbin] = pd.DataFrame(params[QCDbin],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
-            df_dict_cand[QCDbin] =  df_dict_cand[QCDbin][(df_dict_cand[QCDbin].jet_pt_ak7 > 200) & (df_dict_cand[QCDbin].jet_pt_ak7 < 500) &  (df_dict_cand[QCDbin].jet_isW_ak7==0)]
+        df_dict_cand[QCDbin] = pd.DataFrame(params[QCDbin],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
+        df_dict_cand[QCDbin] =  df_dict_cand[QCDbin][(df_dict_cand[QCDbin].jet_pt_ak7 > 200) & (df_dict_cand[QCDbin].jet_pt_ak7 < 500) &  (df_dict_cand[QCDbin].jet_isW_ak7==0)]
     
-        df_dict_jet['QCD'] = pd.concat([df_dict_jet['QCD120'],df_dict_jet['QCD170'],df_dict_jet['QCD300'],df_dict_jet['QCD470']])
-        df_dict_cand['QCD'] = pd.concat([df_dict_cand['QCD120'],df_dict_cand['QCD170'],df_dict_cand['QCD300'],df_dict_cand['QCD470']])
-        if verbose:
-            print len(df_dict_jet['QCD'])
+    df_dict_jet['QCD'] = pd.concat([df_dict_jet['QCD120'],df_dict_jet['QCD170'],df_dict_jet['QCD300'],df_dict_jet['QCD470']])
+    df_dict_cand['QCD'] = pd.concat([df_dict_cand['QCD120'],df_dict_cand['QCD170'],df_dict_cand['QCD300'],df_dict_cand['QCD470']])
+    if verbose:
+        print len(df_dict_jet['QCD'])
+    return df_dict_jet, df_dict_cand
 
+def plotJet(df_dict_jet, df_dict_cand, process='TT',njets_to_plot=-1, nx=30, ny=30, xbins=[], ybins=[]):
+    jet_images = {}
+    # 4D tensor
+    # 1st dim is jet index
+    # 2nd dim is pt value (or rgb, etc.)
+    # 3rd dim is eta bin
+    # 4th dim is phi bin
 
-
-
-
-
-nx = 30 # size of image in eta
-ny = 30 # size of image in phi
-xbins = np.linspace(-1.4,1.4,nx+1)
-ybins = np.linspace(-1.4,1.4,ny+1)
-jet_images = {}
-# 4D tensor
-# 1st dim is jet index
-# 2nd dim is pt value (or rgb, etc.)
-# 3rd dim is eta bin
-# 4th dim is phi bin
-
-
-# In[8]:
-
-def plotJet(process='TT',njets_to_plot=-1):
     list_x = []
     list_y = []
     list_w = []
@@ -98,50 +98,89 @@ def plotJet(process='TT',njets_to_plot=-1):
     plt.ylabel('phi')
     plt.show()
 
+def plot_JES(conv_model):
+    colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
+    #Plot the ROC curves for the training above
+    for cv, color in zip(range(0,1), colors):
+        nbatches = 100
+        jetImageGenerator2 = JetImageGenerator()
+        gen = jetImageGenerator2.generator(test=True)
+        y_predict = []
+        y_score = []
 
-plotJet(process='TT',njets_to_plot=1)
-plotJet('QCD',-1)
+        #Progress bar
+        #maxval = 100
+        maxval = nbatches
+        f = FloatProgress(min=0, max=maxval)
+        display(f)
 
+        for i in range(nbatches):
+            f.value += 1
+            #if i%10==0:
+            #    print "Jet",i
+            Xp, yp = gen.next()
+            y_predict += [yp]
+            y_score += [conv_model.predict(Xp)]
+        y_predict = np.concatenate(y_predict)
+        y_score = np.concatenate(y_score)
+        print y_predict
+        print y_score
+    plt.plot(y_predict, y_score, lw=lw, color=color, label='CNN')
+    plt.xlim([0, 2.0])
+    plt.ylim([0, 2.0])
+    plt.xlabel('Predicted JEC')
+    plt.ylabel('True JEC')
+    plt.title('True Vs. Predicted JEC')
+    plt.legend(loc="lower right")
+    plt.show()
 
-#Plot the ROC curves for the training above
-for cv, color in zip(range(0,2), colors):
-    nbatches = 100
-    jetImageGenerator2 = JetImageGenerator()
-    gen = jetImageGenerator2.generator(test=True)
-    X_predict = []
-    y_predict = []
-    for i in range(nbatches):
-        if i%10==0:
-            print "Jet",i
-        Xp, yp = gen.next()
-        X_predict += [Xp]
-        y_predict += [yp]
-    X_predict = np.concatenate(X_predict)
-    y_predict = np.concatenate(y_predict)
-    y_score = conv_model.predict(X_predict)
-    # Compute ROC curve and area the curve
-    fpr, tpr, thresholds = roc_curve(y_predict, y_score)
-    mean_tpr += interp(mean_fpr, fpr, tpr)
-    mean_tpr[0] = 0.0
-    roc_auc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, lw=lw, color=color, label='ROC fold %d (area = %0.2f)' % (i, roc_auc))
-    i += 1
+def plot_ROC_curves(conv_model):
+    colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
+    #Plot the ROC curves for the training above
+    for cv, color in zip(range(0,1), colors):
+        nbatches = 100
+        jetImageGenerator2 = JetImageGenerator()
+        gen = jetImageGenerator2.generator(test=True)
+        y_predict = []
+        y_score = []
+
+        #Progress bar
+        #maxval = 100
+        maxval = nbatches
+        f = FloatProgress(min=0, max=maxval)
+        display(f)
+
+        for i in range(nbatches):
+            f.value += 1
+            #if i%10==0:
+            #    print "Jet",i
+            Xp, yp = gen.next()
+            y_predict += [yp]
+            y_score += [conv_model.predict(Xp)]
+        y_predict = np.concatenate(y_predict)
+        y_score = np.concatenate(y_score)
+        print y_predict
+        print y_score
+        # Compute ROC curve and area the curve
+        fpr, tpr, thresholds = roc_curve(y_predict, y_score)
+        mean_tpr += interp(mean_fpr, fpr, tpr)
+        mean_tpr[0] = 0.0
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, lw=lw, color=color, label='ROC fold %d (area = %0.2f)' % (i, roc_auc))
+        i += 1
     
-plt.plot([0, 1], [0, 1], linestyle='--', lw=lw, color='k', label='Luck')
-mean_tpr /= kfold.get_n_splits(X, encoded_Y)
-mean_tpr[-1] = 1.0
-mean_auc = auc(mean_fpr, mean_tpr)
-plt.plot(mean_fpr, mean_tpr, color='g', linestyle='--',label='Mean ROC (area = %0.2f)' % mean_auc, lw=lw)
-plt.xlim([0, 1.0])
-plt.ylim([0, 1.0])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('Receiver operating characteristic example')
-plt.legend(loc="lower right")
-plt.show()
-
-
-# In[ ]:
+    plt.plot([0, 1], [0, 1], linestyle='--', lw=lw, color='k', label='Luck')
+    mean_tpr /= kfold.get_n_splits(X, encoded_Y)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    plt.plot(mean_fpr, mean_tpr, color='g', linestyle='--',label='Mean ROC (area = %0.2f)' % mean_auc, lw=lw)
+    plt.xlim([0, 1.0])
+    plt.ylim([0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    plt.show()
 
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1

@@ -5,8 +5,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import roc_curve, auc
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, model_from_json
 from keras.optimizers import SGD
 from keras.layers import Input, Activation, Dense, Convolution2D, MaxPooling2D, Dropout, Flatten
 from keras.utils import np_utils
@@ -16,7 +15,6 @@ from keras import backend as K
 import numpy as np
 import pandas as pd
 import sys, glob, argparse
-import matplotlib as mpl
 from itertools import cycle
 from scipy import interp
 # fix random seed for reproducibility
@@ -34,7 +32,8 @@ class JetImageGenerator(object):
                             'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7',
                             'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7',
                             'jet_ncand_ak7','ak7pfcand_ijet']
-        self.NDIM = self.jet_columns.index('jet_isW_ak7')
+        #self.NDIM = self.jet_columns.index('jet_isW_ak7')
+        self.NDIM = self.jet_columns.index('jet_jes_ak7')
 
         self.cand_columns = ['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta',
                              'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet']
@@ -123,12 +122,18 @@ class JetImageGenerator(object):
                     # split them to test and train
                     X = jet_images
                     y = jet_df.values[:,self.NDIM]
-                    encoder = LabelEncoder()
-                    encoder.fit(y)
-                    encoded_y = encoder.transform(y)
-                    data_train, data_test = list(kfold.split(X, encoded_y))[int(crossvalidation)]
+                    #encoder = LabelEncoder()
+                    #encoder.fit(y)
+                    #encoded_y = encoder.transform(y)
+                    #data_train, data_test = list(kfold.split(X, encoded_y))[int(crossvalidation)]
+                    mixed = list(zip(X,y))
+                    np.random.shuffle(mixed) 
+                    data_train = mixed[:int(len(mixed)*0.4)]
+                    data_test = mixed[int(len(mixed)*0.4):]
                     # select test or train
                     sample = data_test if test else data_train
+                    X = np.array([C[0] for C in sample])
+                    y = np.array([C[1] for C in sample])
                     cat_X[cat] = np.vstack((cat_X[cat],X)) if cat_X[cat].size else X
                     cat_y[cat] = np.hstack((cat_y[cat],y)) if cat_y[cat].size else y
                     icat[cat] += 1
@@ -258,7 +263,7 @@ def build_conv_model(nx=30, ny=30):
         input_layer = Input(shape=(nx, ny, 1))
     else:
         input_layer = Input(shape=(1, nx, ny))
-    layer = Convolution2D(8, 11, 11, border_mode='same')(input_layer)
+    layer = Convolution2D(20, 7, 7, border_mode='same')(input_layer)
     layer = Activation('tanh')(layer)
     layer = MaxPooling2D(pool_size=(2,2))(layer)
     layer = Convolution2D(8, 3, 3, border_mode='same')(layer)
@@ -271,15 +276,16 @@ def build_conv_model(nx=30, ny=30):
     layer = Dropout(0.20)(layer)
     layer = Dense(20)(layer)
     layer = Dropout(0.10)(layer)
-    output_layer = Dense(1, activation='sigmoid')(layer)
+    #output_layer = Dense(1, activation='sigmoid')(layer)
+    output_layer = Dense(1, activation='relu')(layer)
     model = Model(input=input_layer, output=output_layer)
-    #model.compile(loss='mean_squared_error', optimizer='adam')
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    #model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
-def fitModels(verbosity):
+def fitModels(nx,ny,verbosity):
     # Run classifier with cross-validation and plot ROC curves
-    kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
+    #kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
     early_stopping = EarlyStopping(monitor='val_loss', patience=10)
 
     mean_tpr = 0.0
@@ -290,8 +296,10 @@ def fitModels(verbosity):
     i = 0
     histories = []
     models = []
-    for cv, color in zip(range(0,2), colors):
-        conv_model = build_conv_model()
+    for cv, color in zip(range(0,1), colors):
+        conv_model = build_conv_model(nx,ny)
+        if verbose:
+            conv_model.summary()
         early_stopping = EarlyStopping(monitor='val_loss', patience=100)
         jetImageGenerator = JetImageGenerator()
         history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 64, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=64, nb_epoch=10, verbose=verbosity, callbacks=[early_stopping])
@@ -318,7 +326,7 @@ def loadModel(verbose):
     loaded_model.load_weights("model.h5")
     if verbose:
         print("Loaded model from disk")
-    return loaded_model
+    return [loaded_model]
 
 ####################
 # Global Variables #
@@ -327,20 +335,23 @@ nx = 30 # size of image in eta
 ny = 30 # size of image in phi
 xbins = np.linspace(-1.4,1.4,nx+1)
 ybins = np.linspace(-1.4,1.4,ny+1)
-def main(open_models,train_models,save_models,debug,verbose):
+def main(open_models,train_models,save_models,plot,debug,verbose):
     inputs = getInputs()
     params = openFiles(inputs)
     df = convertToPandas(params,verbose)
-    conv_model = build_conv_model(nx,ny)
-    if verbose:
-        conv_model.summary()
     if open_models:
         models = loadModel(verbose)
     else:
-        models = fitModels(verbose)
+        models = fitModels(nx,ny,verbose)
     if save_models and len(models)>=1:
         saveModel(models[0],verbose)
-    return
+    if plot:
+        import MLJEC_MCTruth_Plot as plotter
+        df_dict_jet, df_dict_cand = plotter.prepare_jet_images(params, verbose)
+        #plotter.plotJet(df_dict_jet, df_dict_cand,process='TT', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
+        #plotter.plotJet(df_dict_jet, df_dict_cand,process='QCD', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
+        #plotter.plot_ROC_curves(models[0])
+        plotter.plot_JES(models[0])
 
 if __name__ == '__main__':
     #program name available through the %(prog)s command
@@ -351,9 +362,10 @@ Open files and train models for maching learning (ML) based JEC.""",
 And those are the options available. Deal with it.
 """)
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-o", "--open_models", help="load the models from a file", action"store_true")
+    group.add_argument("-o", "--open_models", help="load the models from a file", action="store_true")
     group.add_argument("-t", "--train_models", help="refit the models", action="store_true")
     parser.add_argument("-s", "--save_models", help="save the models and the weights", action="store_true")
+    parser.add_argument("-p", "--plot", help="plot the ROC curves after training and testing", action="store_true")
     parser.add_argument("-d","--debug", help="Shows extra information in order to debug this program.",
                         action="store_true")
     parser.add_argument("-v","--verbose", help="print out additional information", action="store_true")
@@ -365,7 +377,7 @@ And those are the options available. Deal with it.
          print 'Argument List:', str(sys.argv)
          print "Argument ", args
 
-    main(open_models=args.open_models,train_models=args.train_models,save_models=args.save_models,debug=args.debug,verbose=args.verbose)
+    main(open_models=args.open_models,train_models=args.train_models,save_models=args.save_models,plot=args.plot,debug=args.debug,verbose=args.verbose)
 
 
 
