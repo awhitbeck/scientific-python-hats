@@ -11,6 +11,7 @@ from keras.layers import Input, Activation, Dense, Convolution2D, MaxPooling2D, 
 from keras.utils import np_utils
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras.callbacks import EarlyStopping
+from keras.layers import Merge, merge
 from keras import backend as K
 import numpy as np
 import pandas as pd
@@ -82,6 +83,8 @@ class JetImageGenerator(object):
         icat = {cat:0 for cat in self.categories}
         cat_X = {cat:np.array([]) for cat in self.categories}
         cat_y = {cat:np.array([]) for cat in self.categories}
+        cat_z = {cat:np.array([]) for cat in self.categories}
+        cat_t = {cat:np.array([]) for cat in self.categories}
         
         kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
         
@@ -122,11 +125,13 @@ class JetImageGenerator(object):
                     # split them to test and train
                     X = jet_images
                     y = jet_df.values[:,self.NDIM]
+                    z = jet_df.values[:,self.jet_columns.index('jet_pt_ak7')]
+                    t = jet_df.values[:,self.jet_columns.index('jet_eta_ak7')]
                     #encoder = LabelEncoder()
                     #encoder.fit(y)
                     #encoded_y = encoder.transform(y)
                     #data_train, data_test = list(kfold.split(X, encoded_y))[int(crossvalidation)]
-                    mixed = list(zip(X,y))
+                    mixed = list(zip(X,y,z,t))
                     np.random.shuffle(mixed) 
                     data_train = mixed[:int(len(mixed)*0.4)]
                     data_test = mixed[int(len(mixed)*0.4):]
@@ -134,21 +139,34 @@ class JetImageGenerator(object):
                     sample = data_test if test else data_train
                     X = np.array([C[0] for C in sample])
                     y = np.array([C[1] for C in sample])
+                    z = np.array([C[2] for C in sample])
+                    t = np.array([C[3] for C in sample])
                     cat_X[cat] = np.vstack((cat_X[cat],X)) if cat_X[cat].size else X
                     cat_y[cat] = np.hstack((cat_y[cat],y)) if cat_y[cat].size else y
+                    cat_z[cat] = np.hstack((cat_z[cat],z)) if cat_z[cat].size else z
+                    cat_t[cat] = np.hstack((cat_t[cat],t)) if cat_t[cat].size else t
                     icat[cat] += 1
 
             # build combined sample based on batch_size
             all_X = np.array([])
             all_y = np.array([])
+            all_z = np.array([])
+            all_t = np.array([])
             for cat in self.categories:
                 X = cat_X[cat][:percat]
                 y = cat_y[cat][:percat]
+                z = cat_z[cat][:percat]
+                t = cat_t[cat][:percat]
                 cat_X[cat] = cat_X[cat][percat:]
                 cat_y[cat] = cat_y[cat][percat:]
+                cat_z[cat] = cat_z[cat][percat:]
+                cat_t[cat] = cat_t[cat][percat:]
                 all_X = np.vstack((all_X,X)) if all_X.size else X
                 all_y = np.hstack((all_y,y)) if all_y.size else y
+                all_z = np.hstack((all_z,z)) if all_z.size else z
+                all_t = np.hstack((all_t,t)) if all_t.size else t
 
+            #yield [all_X, all_z, all_t], all_y
             yield all_X, all_y
 
 # rotation + (possible) reflection needed later
@@ -273,20 +291,25 @@ def build_conv_model(nx=30, ny=30):
     layer = Activation('tanh')(layer)
     layer = MaxPooling2D(pool_size=(3,3))(layer)
     layer = Flatten()(layer)
+    # additional features input
+    #jet_pt_ak7_input = Input(shape=(1,), name='jet_pt_ak7_input')
+    #jet_eta_ak7_input = Input(shape=(1,), name='jet_eta_ak7_input')
+    #layer = merge([layer, jet_pt_ak7_input, jet_eta_ak7_input], mode='concat')
     layer = Dropout(0.20)(layer)
     layer = Dense(20)(layer)
     layer = Dropout(0.10)(layer)
     #output_layer = Dense(1, activation='sigmoid')(layer)
-    output_layer = Dense(1, activation='relu')(layer)
+    output_layer = Dense(1, activation='relu', name='main_output')(layer)
+    #model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input], output=output_layer)
     model = Model(input=input_layer, output=output_layer)
     model.compile(optimizer='adam', loss='mean_squared_error')
     #model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
-def fitModels(nx,ny,verbosity):
+def fitModels(nx,ny,verbosity,debug):
     # Run classifier with cross-validation and plot ROC curves
     #kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
-    early_stopping = EarlyStopping(monitor='val_loss', patience=10)
+    #early_stopping = EarlyStopping(monitor='val_loss', patience=10)
 
     mean_tpr = 0.0
     mean_fpr = np.linspace(0, 1, 100)
@@ -302,7 +325,7 @@ def fitModels(nx,ny,verbosity):
             conv_model.summary()
         early_stopping = EarlyStopping(monitor='val_loss', patience=100)
         jetImageGenerator = JetImageGenerator()
-        history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 64, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=64, nb_epoch=10, verbose=verbosity, callbacks=[early_stopping])
+        history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
     return models
@@ -342,7 +365,7 @@ def main(open_models,train_models,save_models,plot,debug,verbose):
     if open_models:
         models = loadModel(verbose)
     else:
-        models = fitModels(nx,ny,verbose)
+        models = fitModels(nx,ny,verbose,debug)
     if save_models and len(models)>=1:
         saveModel(models[0],verbose)
     if plot:

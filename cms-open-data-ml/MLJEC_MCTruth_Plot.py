@@ -99,7 +99,7 @@ def plotJet(df_dict_jet, df_dict_cand, process='TT',njets_to_plot=-1, nx=30, ny=
     plt.show()
 
 def plot_JES(conv_model):
-    colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
+    colors = cycle(['seagreen','cyan', 'indigo', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
     #Plot the ROC curves for the training above
     for cv, color in zip(range(0,1), colors):
         nbatches = 100
@@ -125,12 +125,12 @@ def plot_JES(conv_model):
         y_score = np.concatenate(y_score)
         print y_predict
         print y_score
-    plt.plot(y_predict, y_score, lw=lw, color=color, label='CNN')
-    plt.xlim([0, 2.0])
-    plt.ylim([0, 2.0])
-    plt.xlabel('Predicted JEC')
-    plt.ylabel('True JEC')
-    plt.title('True Vs. Predicted JEC')
+    plt.scatter(y_predict, y_score, color=color, label='CNN')
+    plt.xlim([0.5, 1.5])
+    plt.ylim([0.5, 1.5])
+    plt.ylabel('Predicted JEC')
+    plt.xlabel('True JEC')
+    plt.title('Predicted Vs. True JEC')
     plt.legend(loc="lower right")
     plt.show()
 
