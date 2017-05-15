@@ -5,8 +5,9 @@ import pandas as pd
 from keras import backend as K
 from MLJEC_MCTruth_Util import rotate_and_reflect, prepare_df_dict, JetImageGenerator
 from itertools import cycle
-from ipywidgets import FloatProgress
-from IPython.display import display
+from tqdm import trange, tqdm
+#from ipywidgets import FloatProgress
+#from IPython.display import display
 from sklearn.metrics import roc_curve, auc
 
 lw=2
@@ -72,7 +73,7 @@ def plot_JES(conv_model):
     #Plot the ROC curves for the training above
     for cv, color in zip(range(0,1), colors):
         nbatches = 100
-        jetImageGenerator2 = JetImageGenerator()
+        jetImageGenerator2 = JetImageGenerator(2)
         gen = jetImageGenerator2.generator(test=True)
         y_predict = []
         y_score = []
@@ -80,11 +81,11 @@ def plot_JES(conv_model):
         #Progress bar
         #maxval = 100
         maxval = nbatches
-        f = FloatProgress(min=0, max=maxval)
-        display(f)
+        #f = FloatProgress(min=0, max=maxval)
+        #display(f)
 
-        for i in range(nbatches):
-            f.value += 1
+        for i in tqdm(range(nbatches)):
+            #f.value += 1
             #if i%10==0:
             #    print "Jet",i
             Xp, yp = gen.next()
@@ -101,7 +102,8 @@ def plot_JES(conv_model):
     plt.xlabel('True JEC')
     plt.title('Predicted Vs. True JEC')
     plt.legend(loc="lower right")
-    plt.show()
+    plt.save("JES.png")
+    #plt.show()
 
 def plot_ROC_curves(conv_model):
     colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])

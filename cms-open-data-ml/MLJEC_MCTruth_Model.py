@@ -18,8 +18,9 @@ import pandas as pd
 import sys, glob, argparse, os
 from itertools import cycle
 from scipy import interp
-from ipywidgets import FloatProgress
-from IPython.display import display
+#from ipywidgets import FloatProgress
+#from IPython.display import display
+from tqdm import trange, tqdm
 from MLJEC_MCTruth_Util import rotate_and_reflect, prepare_df_dict, JetImageGenerator
 import MLJEC_MCTruth_Plot as plotter
 # fix random seed for reproducibility
@@ -127,33 +128,47 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
         if verbosity:
             conv_model.summary()
         early_stopping = EarlyStopping(monitor='val_loss', patience=10)
-        jetImageGenerator = JetImageGenerator()
+        jetImageGenerator = JetImageGenerator(2 if not generator else 32)
         if generator:
             history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
         else:
             if not os.path.exists("X_train.npz"):
                 gen1 = jetImageGenerator.generator(crossvalidation=int(cv))
-                X_train = np.empty(3200,dtype=object)
-                X_test = np.empty(3200,dtype=object)
-                f = FloatProgress(min=0, max=3200)
-                display(f)
-                for i in range(3200):
-                    f.value += 1
-                    X_train[i], encoded_Y_train = gen1.next()
-                    X_test[i], encoded_Y_test = gen1.next()
+                #X_train = np.empty(16,dtype=object)
+                #X_test = np.empty(16,dtype=object)
+                #f = FloatProgress(min=0, max=320)
+                #display(f)
+                for i in tqdm(range(160)):
+                    #f.value += 1
+                    #X_train, encoded_Y_train = gen1.next()
+                    if i==0:
+                        X_train, encoded_Y_train = gen1.next()
+                        X_test, encoded_Y_test = gen1.next()
+                    else:
+                        X_train_tmp, encoded_Y_train_tmp = gen1.next()
+                        X_train[0] = np.vstack((X_train[0],X_train_tmp[0]))
+                        X_train[1] = np.hstack((X_train[1],X_train_tmp[1]))
+                        X_train[2] = np.hstack((X_train[2],X_train_tmp[2]))
+                        encoded_Y_train = np.hstack((encoded_Y_train,encoded_Y_train_tmp))
+                        X_test_tmp, encoded_Y_test_tmp = gen1.next()
+                        X_test[0] = np.vstack((X_test[0],X_test_tmp[0]))
+                        X_test[1] = np.hstack((X_test[1],X_test_tmp[1]))
+                        X_test[2] = np.hstack((X_test[2],X_test_tmp[2]))
+                        encoded_Y_test = np.hstack((encoded_Y_test,encoded_Y_test_tmp))
+                    
+                #np.savez("X_train.npz",*(X_train + [encoded_Y_train]))
+                #np.savez("X_test.npz",*(X_test + [encoded_Y_test]))
+            else:
                 data_train = np.load("X_train.npz")
                 X_train = [data_train[0],data_train[1],data_train[2]]
                 encoded_Y_train = data_train[3]
                 data_test = np.load("X_test.npz")
                 X_test = [data_test[0],data_test[1],data_test[2]]
                 encoded_Y_test = data_test[3]
-            else:
-                np.savez("X_train.npz",*(X_train + [encoded_Y_train]))
-                np.savez("X_test.npz",*(X_test + [encoded_Y_test]))
 
             scaler = StandardScaler()
-            X_train[1][:] = scaler.fit_transform(X_train[1])
-            X_test[1][:] = scaler.transform(X_test[1])
+            X_train[1] = scaler.fit_transform(X_train[1].reshape(-1,1))
+            X_test[1] = scaler.transform(X_test[1].reshape(-1,1))
 
             history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=10, batch_size=32, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
