@@ -91,7 +91,7 @@ def build_conv_model(nx=30, ny=30):
         input_layer = Input(shape=(nx, ny, 1))
     else:
         input_layer = Input(shape=(1, nx, ny))
-    layer = Convolution2D(20, 7, 7, border_mode='same')(input_layer)
+    layer = Convolution2D(20, 11,11, border_mode='same')(input_layer)
     layer = Activation('tanh')(layer)
     layer = MaxPooling2D(pool_size=(2,2))(layer)
     layer = Convolution2D(8, 3, 3, border_mode='same')(layer)
@@ -109,7 +109,7 @@ def build_conv_model(nx=30, ny=30):
     layer = Dense(20)(layer)
     layer = Dropout(0.10)(layer)
     #other activation option 'sigmoid' better for bounded problem
-    output_layer = Dense(1, activation='relu', name='main_output')(layer)
+    output_layer = Dense(1, activation='linear', name='main_output')(layer)
     model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input], output=output_layer)
     #model = Model(input=input_layer, output=output_layer)
     model.compile(optimizer='adam', loss='kullback_leibler_divergence', metrics=['accuracy','precision','mse','msle'])
@@ -138,7 +138,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                 #X_test = np.empty(16,dtype=object)
                 #f = FloatProgress(min=0, max=320)
                 #display(f)
-                for i in tqdm(range(160)):
+                for i in tqdm(range(1920)):
                     #f.value += 1
                     #X_train, encoded_Y_train = gen1.next()
                     if i==0:
@@ -170,7 +170,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
             X_train[1] = scaler.fit_transform(X_train[1].reshape(-1,1))
             X_test[1] = scaler.transform(X_test[1].reshape(-1,1))
 
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=10, batch_size=32, verbose=verbosity, callbacks=[early_stopping])
+            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=1000, batch_size=128, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
     return models

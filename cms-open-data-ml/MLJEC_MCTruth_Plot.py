@@ -102,7 +102,7 @@ def plot_JES(conv_model):
     plt.xlabel('True JEC')
     plt.title('Predicted Vs. True JEC')
     plt.legend(loc="lower right")
-    plt.save("JES.png")
+    plt.savefig("JES.png")
     #plt.show()
 
 def plot_ROC_curves(conv_model):
