@@ -14,6 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 #http://scikit-learn.org/stable/tutorial/basic/tutorial.html#model-persistence
 from sklearn.externals import joblib
+#https://en.wikipedia.org/wiki/Activation_function
 from keras.models import Sequential, Model, model_from_json
 from keras.optimizers import SGD
 from keras.layers import Input, Activation, Dense, Convolution2D, MaxPooling2D, Dropout, Flatten
@@ -117,7 +118,7 @@ def build_conv_model(nx=30, ny=30):
     jet_eta_ak7_input = Input(shape=(1,), name='jet_eta_ak7_input')
     layer = merge([layer, jet_pt_ak7_input, jet_eta_ak7_input], mode='concat')
     #layer = Dropout(0.20)(layer)
-    layer = Dense(20)(layer)
+    layer = Dense(20, activation='softplus')(layer)
     layer = Dropout(0.10)(layer)
     #other activation option 'sigmoid' better for bounded problem
     output_layer = Dense(1, activation='linear', name='main_output')(layer)
@@ -209,7 +210,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
             X_train[2] /= np.max(np.abs(2.5),axis=0)
             X_test[2] /= np.max(np.abs(2.5),axis=0)
 
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=256, verbose=verbosity, callbacks=[early_stopping])
+            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=512, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
     return models, histories
