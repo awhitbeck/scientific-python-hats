@@ -1,4 +1,5 @@
 from sklearn.externals import joblib
+from sklearn.preprocessing import scale
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -69,11 +70,11 @@ def plotJet(df_dict_jet, df_dict_cand, process='TT',njets_to_plot=-1, nx=30, ny=
     plt.ylabel('phi')
     plt.show()
 
-def plot_JES(conv_model):
+def plot_JES(conv_model, verbose):
     colors = cycle(['seagreen','cyan', 'indigo', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
     #Plot the ROC curves for the training above
     for cv, color in zip(range(0,1), colors):
-        nbatches = 100
+        nbatches = 200
         jetImageGenerator2 = JetImageGenerator(2)
         gen = jetImageGenerator2.generator(test=True)
         y_predict = []
@@ -85,26 +86,43 @@ def plot_JES(conv_model):
         #f = FloatProgress(min=0, max=maxval)
         #display(f)
 
+        all_pT = np.array([])
+        all_eta = np.array([])
         for i in tqdm(range(nbatches)):
             #f.value += 1
             #if i%10==0:
             #    print "Jet",i
             Xp, yp = gen.next()
+            #if verbose:
+                #print ("Before transformation:")
+                #print ("\t",Xp)
 
             #Do all of the scaling
             np.clip(Xp[0],0,100,out=Xp[0])
             scaler = joblib.load('scaler.pkl')
             Xp[1] = scaler.transform(Xp[1].reshape(-1,1))
-            Xp[2] /= np.max(np.abs(5),axis=0)
+            #Xp[1] -= 200
+            #Xp[1] /= 100
+            Xp[2] /= np.max(np.abs(2.5),axis=0)
+
+            #if verbose:
+                #print ("After transformation:")
+                #print ("\t",Xp)
+                #print ("y_predict",yp)
+                #print ("y_score", conv_model.predict(Xp))
 
             y_predict += [yp]
             y_score += [conv_model.predict(Xp)]
+            all_pT = np.concatenate([all_pT.reshape(-1,1), Xp[1]])
+            all_eta = np.concatenate([all_eta.reshape(-1,1), Xp[2]])
+
         y_predict = np.concatenate(y_predict)
         y_score = np.concatenate(y_score)
         print y_predict
         print y_score
+    plt.figure()
     plt.scatter(y_predict, y_score, color=color, label='CNN')
-    plt.xlim([0.0, 3.0])
+    plt.xlim([0.5, 1.5])
     plt.ylim([0.0, 3.0])
     plt.ylabel('Predicted JEC')
     plt.xlabel('True JEC')
@@ -112,6 +130,24 @@ def plot_JES(conv_model):
     plt.legend(loc="lower right")
     plt.savefig("JES.png")
     #plt.show()
+
+    plt.figure()
+    plt.xlabel('pT')
+    plt.ylabel('Entries')
+    plt.title('Jet pT')
+    bins = np.linspace(-3, 3, 60)
+    plt.hist(all_pT,bins=bins, alpha=1, label='Mixed Sample',normed=True)
+    plt.legend(loc='upper right')
+    plt.savefig("pT.png")
+
+    plt.figure()
+    plt.xlabel('eta')
+    plt.ylabel('Entries')
+    plt.title('Jet eta')
+    bins = np.linspace(-1, 1, 20)
+    plt.hist(all_eta,bins=bins, alpha=1, label='Mixed Sample',normed=True)
+    plt.legend(loc='upper right')
+    plt.savefig("eta.png")
 
 def plot_ROC_curves(conv_model):
     colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
@@ -152,6 +188,7 @@ def plot_ROC_curves(conv_model):
     mean_tpr /= kfold.get_n_splits(X, encoded_Y)
     mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
+    plt.figure()
     plt.plot(mean_fpr, mean_tpr, color='g', linestyle='--',label='Mean ROC (area = %0.2f)' % mean_auc, lw=lw)
     plt.xlim([0, 1.0])
     plt.ylim([0, 1.0])
@@ -255,4 +292,56 @@ def plot_loss(histories):
     plt.legend()
     plt.xlabel('epoch')
     plt.savefig("history.png")
+
+'''
+import MLJEC_MCTruth_Plot as plot
+plot.plot_inputs()
+'''
+def plot_inputs():
+    colors = cycle(['seagreen','cyan', 'indigo', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
+    #Plot the ROC curves for the training above
+    for cv, color in zip(range(0,1), colors):
+        nbatches = 200
+        jetImageGenerator2 = JetImageGenerator(2)
+        gen = jetImageGenerator2.generator(test=True)
+
+        all_pT = np.array([])
+        all_eta = np.array([])
+        maxval = nbatches
+        for i in tqdm(range(nbatches)):
+            Xp, yp = gen.next()
+            #Do all of the scaling
+            scaler = joblib.load('scaler.pkl')
+            Xp[1] = scaler.transform(Xp[1].reshape(-1,1))
+            #Xp[1] -= 200
+            #Xp[1] /= 100
+            Xp[2] /= np.max(np.abs(2.5),axis=0)
+
+            #all_pT = np.concatenate([all_pT.reshape(-1,1), Xp[1]])
+            all_pT = np.concatenate([all_pT, Xp[1]])
+            all_eta = np.concatenate([all_eta, Xp[2]])
+
+    plt.figure()
+    plt.xlabel('pT')
+    plt.ylabel('Entries')
+    plt.title('Jet pT')
+    bins = np.linspace(-3, 3, 60)
+    plt.hist(all_pT,bins=bins, alpha=1, label='Mixed Sample',normed=True)
+    plt.legend(loc='upper right')
+    plt.savefig("pT.png")
+
+    plt.figure()
+    plt.xlabel('eta')
+    plt.ylabel('Entries')
+    plt.title('Jet eta')
+    bins = np.linspace(-1, 1, 20)
+    plt.hist(all_eta,bins=bins, alpha=1, label='Mixed Sample',normed=True)
+    plt.legend(loc='upper right')
+    plt.savefig("eta.png")
+
+
+
+
+
+  
 

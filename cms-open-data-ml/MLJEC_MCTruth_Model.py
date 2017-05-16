@@ -7,8 +7,12 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
+#http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler
+#http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+#http://scikit-learn.org/stable/tutorial/basic/tutorial.html#model-persistence
 from sklearn.externals import joblib
 from keras.models import Sequential, Model, model_from_json
 from keras.optimizers import SGD
@@ -18,6 +22,7 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from keras.callbacks import EarlyStopping
 from keras.layers import Merge, merge
 from keras import backend as K
+#https://docs.scipy.org/doc/numpy/reference/generated/numpy.clip.html
 import numpy as np
 import pandas as pd
 import sys, glob, argparse, h5py
@@ -25,6 +30,7 @@ from itertools import cycle
 from scipy import interp
 #from ipywidgets import FloatProgress
 #from IPython.display import display
+#https://github.com/tqdm/tqdm#latest-conda-release
 from tqdm import trange, tqdm
 from MLJEC_MCTruth_Util import rotate_and_reflect, prepare_df_dict, JetImageGenerator
 import MLJEC_MCTruth_Plot as plotter
@@ -117,7 +123,8 @@ def build_conv_model(nx=30, ny=30):
     output_layer = Dense(1, activation='linear', name='main_output')(layer)
     model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input], output=output_layer)
     #model = Model(input=input_layer, output=output_layer)
-    model.compile(optimizer='adam', loss='kullback_leibler_divergence', metrics=['accuracy','precision','mse','msle'])
+    #model.compile(optimizer='adam', loss='kullback_leibler_divergence', metrics=['accuracy','precision','mse','msle'])
+    model.compile(optimizer='adam', loss='mse', metrics=['accuracy','precision','mse','msle'])
     return model
 
 def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
@@ -143,7 +150,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                 #X_test = np.empty(16,dtype=object)
                 #f = FloatProgress(min=0, max=320)
                 #display(f)
-                for i in tqdm(range(960)):
+                for i in tqdm(range(12800)):
                     #f.value += 1
                     #X_train, encoded_Y_train = gen1.next()
                     if i==0:
@@ -190,14 +197,19 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
             scaler = StandardScaler()
             X_train[1] = scaler.fit_transform(X_train[1].reshape(-1,1))
             X_test[1] = scaler.transform(X_test[1].reshape(-1,1))
+            #X_train[1] -= 200
+            #X_train[1] /= 100
+            #X_test[1] -= 200
+            #X_test[1] /= 100
+
             if not os.path.exists("scaler.pkl"):
                 joblib.dump(scaler, 'scaler.pkl') 
             #X_train[2] /= np.max(np.abs(X_train[2]),axis=0)
             #X_test[2] /= np.max(np.abs(X_test[2]),axis=0)
-            X_train[2] /= np.max(np.abs(5),axis=0)
-            X_test[2] /= np.max(np.abs(5),axis=0)
+            X_train[2] /= np.max(np.abs(2.5),axis=0)
+            X_test[2] /= np.max(np.abs(2.5),axis=0)
 
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=30, batch_size=64, verbose=verbosity, callbacks=[early_stopping])
+            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=256, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
     return models, histories
@@ -243,7 +255,8 @@ def main(open_models,train_models,save_models,plot,generator,reset,debug,verbose
 
     #Make, load, and/or save the models
     if open_models:
-        models, histories = loadModel(verbose)
+        models = loadModel(verbose)
+        histories = []
     else:
         models, histories = fitModels(df_dict_jet,df_dict_cand,nx,ny,generator,verbose,debug)
     if save_models and len(models)>=1:
@@ -254,8 +267,10 @@ def main(open_models,train_models,save_models,plot,generator,reset,debug,verbose
         #plotter.plotJet(df_dict_jet, df_dict_cand,process='TT', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
         #plotter.plotJet(df_dict_jet, df_dict_cand,process='QCD', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
         #plotter.plot_ROC_curves(models[0])
-        plotter.plot_loss(histories)
-        plotter.plot_JES(models[0])
+        if len(histories)>0:
+            plotter.plot_loss(histories)
+        plotter.plot_JES(models[0],verbose)
+        #plotter.plot_inputs()
 
 if __name__ == '__main__':
     #program name available through the %(prog)s command
