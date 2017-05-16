@@ -1,4 +1,8 @@
 # coding: utf-8
+import os, getpass
+if getpass.getuser()=='jovyan':
+    os.environ['KERAS_BACKEND'] = 'tensorflow'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
@@ -16,7 +20,7 @@ from keras.layers import Merge, merge
 from keras import backend as K
 import numpy as np
 import pandas as pd
-import sys, glob, argparse, os, h5py
+import sys, glob, argparse, h5py
 from itertools import cycle
 from scipy import interp
 #from ipywidgets import FloatProgress

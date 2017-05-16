@@ -104,8 +104,8 @@ def plot_JES(conv_model):
         print y_predict
         print y_score
     plt.scatter(y_predict, y_score, color=color, label='CNN')
-    plt.xlim([0.5, 1.5])
-    plt.ylim([0.5, 1.5])
+    plt.xlim([0.0, 3.0])
+    plt.ylim([0.0, 3.0])
     plt.ylabel('Predicted JEC')
     plt.xlabel('True JEC')
     plt.title('Predicted Vs. True JEC')
