@@ -1,3 +1,4 @@
+from sklearn.externals import joblib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -89,6 +90,13 @@ def plot_JES(conv_model):
             #if i%10==0:
             #    print "Jet",i
             Xp, yp = gen.next()
+
+            #Do all of the scaling
+            np.clip(Xp[0],0,100,out=Xp[0])
+            scaler = joblib.load('scaler.pkl')
+            Xp[1] = scaler.transform(Xp[1].reshape(-1,1))
+            Xp[2] /= np.max(np.abs(5),axis=0)
+
             y_predict += [yp]
             y_score += [conv_model.predict(Xp)]
         y_predict = np.concatenate(y_predict)
@@ -238,3 +246,13 @@ def plot_layer(conv_model):
         plt.imshow(img[0])
         plt.colorbar()
     plt.show()
+
+def plot_loss(histories):
+    val_loss = np.asarray(histories[0].history['val_loss'])
+    loss = np.asarray(histories[0].history['loss'])
+    plt.plot(np.log(val_loss), label='validation')
+    plt.plot(np.log(loss), label='train')
+    plt.legend()
+    plt.xlabel('epoch')
+    plt.savefig("history.png")
+

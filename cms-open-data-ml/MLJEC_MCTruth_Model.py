@@ -5,6 +5,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.externals import joblib
 from keras.models import Sequential, Model, model_from_json
 from keras.optimizers import SGD
 from keras.layers import Input, Activation, Dense, Convolution2D, MaxPooling2D, Dropout, Flatten
@@ -15,7 +16,7 @@ from keras.layers import Merge, merge
 from keras import backend as K
 import numpy as np
 import pandas as pd
-import sys, glob, argparse, os
+import sys, glob, argparse, os, h5py
 from itertools import cycle
 from scipy import interp
 #from ipywidgets import FloatProgress
@@ -51,7 +52,7 @@ def openFiles(inputs):
                 arr = np.load(in_file)
                 list_params[key].append(arr)
             except ValueError:
-                print 'bad file: %s'%in_file
+                print ('bad file: %s'%in_file)
         params[key] = np.concatenate(list_params[key])
     return params
 
@@ -75,12 +76,12 @@ def convertToPandas(params,verbose):
     df = pd.concat([df_dict['TT'],df_dict['QCD']])
 
     if verbose:
-        print params['TT'].dtype.names
-        print 'number of W jets: %i'%len(df_dict['TT'])
+        print (params['TT'].dtype.names)
+        print ('number of W jets: %i'%len(df_dict['TT']))
         for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
-            print 'number of QCD jets in bin %s: %i'%( QCDbin, len(df_dict[QCDbin]))
-        print df_dict['TT'].iloc[:3]
-        print df_dict['QCD'].iloc[:3]
+            print ('number of QCD jets in bin %s: %i'%( QCDbin, len(df_dict[QCDbin])))
+        print (df_dict['TT'].iloc[:3])
+        print (df_dict['QCD'].iloc[:3])
 
     return df
 
@@ -132,13 +133,13 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
         if generator:
             history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
         else:
-            if not os.path.exists("X_train.npz"):
+            if not os.path.exists("train_test_data.h5"):
                 gen1 = jetImageGenerator.generator(crossvalidation=int(cv))
                 #X_train = np.empty(16,dtype=object)
                 #X_test = np.empty(16,dtype=object)
                 #f = FloatProgress(min=0, max=320)
                 #display(f)
-                for i in tqdm(range(1920)):
+                for i in tqdm(range(960)):
                     #f.value += 1
                     #X_train, encoded_Y_train = gen1.next()
                     if i==0:
@@ -158,22 +159,44 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                     
                 #np.savez("X_train.npz",*(X_train + [encoded_Y_train]))
                 #np.savez("X_test.npz",*(X_test + [encoded_Y_test]))
+                hf = h5py.File("train_test_data.h5",'w')
+                for j in range(0,3):
+                    hf['X_%d_train'%j] = X_train[j]
+                    hf['X_%d_test'%j] = X_test[j]
+                hf['encoded_Y_train'] = encoded_Y_train
+                hf['encoded_Y_test'] = encoded_Y_test
+                hf.close()
             else:
-                data_train = np.load("X_train.npz")
-                X_train = [data_train[0],data_train[1],data_train[2]]
-                encoded_Y_train = data_train[3]
-                data_test = np.load("X_test.npz")
-                X_test = [data_test[0],data_test[1],data_test[2]]
-                encoded_Y_test = data_test[3]
+                #data_train = np.load("X_train.npz")
+                #X_train = [data_train[0],data_train[1],data_train[2]]
+                #encoded_Y_train = data_train[3]
+                #data_test = np.load("X_test.npz")
+                #X_test = [data_test[0],data_test[1],data_test[2]]
+                #encoded_Y_test = data_test[3]
+                hf = h5py.File("train_test_data.h5",'r')
+                encoded_Y_train = hf['encoded_Y_train'].value
+                encoded_Y_test = hf['encoded_Y_test'].value
+                X_train = [hf['X_%d_train'%j].value for j in range(0,3)]
+                X_test = [hf['X_%d_train'%j].value for j in range(0,3)]
+                print (X_train[0].shape)
 
+
+            np.clip(X_train[0],0,100,out=X_train[0])
+            np.clip(X_test[0],0,100,out=X_test[0])
             scaler = StandardScaler()
             X_train[1] = scaler.fit_transform(X_train[1].reshape(-1,1))
             X_test[1] = scaler.transform(X_test[1].reshape(-1,1))
+            if not os.path.exists("scaler.pkl"):
+                joblib.dump(scaler, 'scaler.pkl') 
+            #X_train[2] /= np.max(np.abs(X_train[2]),axis=0)
+            #X_test[2] /= np.max(np.abs(X_test[2]),axis=0)
+            X_train[2] /= np.max(np.abs(5),axis=0)
+            X_test[2] /= np.max(np.abs(5),axis=0)
 
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=1000, batch_size=128, verbose=verbosity, callbacks=[early_stopping])
+            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=30, batch_size=64, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
-    return models
+    return models, histories
 
 def saveModel(model,verbose):
     # serialize model to JSON
@@ -203,7 +226,11 @@ nx = 30 # size of image in eta
 ny = 30 # size of image in phi
 xbins = np.linspace(-1.4,1.4,nx+1)
 ybins = np.linspace(-1.4,1.4,ny+1)
-def main(open_models,train_models,save_models,plot,generator,debug,verbose):
+def main(open_models,train_models,save_models,plot,generator,reset,debug,verbose):
+    if reset and os.path.exists("scaler.pkl"):
+        print ("Removing old version of \"scaler.pkl\"")
+        os.remove("scaler.pkl")
+
     #Get the inputs
     inputs = getInputs()
     params = openFiles(inputs)
@@ -212,9 +239,9 @@ def main(open_models,train_models,save_models,plot,generator,debug,verbose):
 
     #Make, load, and/or save the models
     if open_models:
-        models = loadModel(verbose)
+        models, histories = loadModel(verbose)
     else:
-        models = fitModels(df_dict_jet,df_dict_cand,nx,ny,generator,verbose,debug)
+        models, histories = fitModels(df_dict_jet,df_dict_cand,nx,ny,generator,verbose,debug)
     if save_models and len(models)>=1:
         saveModel(models[0],verbose)
 
@@ -223,13 +250,17 @@ def main(open_models,train_models,save_models,plot,generator,debug,verbose):
         #plotter.plotJet(df_dict_jet, df_dict_cand,process='TT', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
         #plotter.plotJet(df_dict_jet, df_dict_cand,process='QCD', njets_to_plot=1, nx=nx, ny=ny, xbins=xbins, ybins=ybins)
         #plotter.plot_ROC_curves(models[0])
+        plotter.plot_loss(histories)
         plotter.plot_JES(models[0])
 
 if __name__ == '__main__':
     #program name available through the %(prog)s command
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description="""
-Open files and train models for maching learning (ML) based JEC.""",
+Open files and train models for maching learning (ML) based JEC.
+Usage:
+python MLJEC_MCTruth_Model.py -t -s -p -v -r
+""",
                                      epilog="""
 And those are the options available. Deal with it.
 """)
@@ -241,16 +272,19 @@ And those are the options available. Deal with it.
     parser.add_argument("-p", "--plot", help="plot the ROC curves after training and testing", action="store_true")
     parser.add_argument("-d","--debug", help="Shows extra information in order to debug this program.",
                         action="store_true")
+    parser.add_argument("-r","--reset", help="Delete the scaler file to reset the training (note: the prefetched data files will remain",
+                        action="store_true")
     parser.add_argument("-v","--verbose", help="print out additional information", action="store_true")
     parser.add_argument('--version', action='version', version='%(prog)s 2.0b')
     args = parser.parse_args()
 
     if(args.debug):
-         print 'Number of arguments:', len(sys.argv), 'arguments.'
-         print 'Argument List:', str(sys.argv)
-         print "Argument ", args
+         print ('Number of arguments:', len(sys.argv), 'arguments.')
+         print ('Argument List:', str(sys.argv))
+         print ("Argument ", args)
 
-    main(open_models=args.open_models,train_models=args.train_models,save_models=args.save_models,plot=args.plot,generator=args.generator,debug=args.debug,verbose=args.verbose)
+    main(open_models=args.open_models,train_models=args.train_models,save_models=args.save_models,
+         plot=args.plot,generator=args.generator,reset=args.reset,debug=args.debug,verbose=args.verbose)
 
 
 

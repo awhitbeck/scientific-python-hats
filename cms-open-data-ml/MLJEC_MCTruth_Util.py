@@ -71,7 +71,7 @@ def rotate_and_reflect(x,y,w):
 def prepare_df_dict(params, verbose):
     # now let's prepare some jet images
     if verbose:
-        print params['TT'].dtype.names
+        print (params['TT'].dtype.names)
 
     df_dict_jet = {}
     df_dict_jet['TT'] = pd.DataFrame(params['TT'],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
@@ -96,7 +96,7 @@ def prepare_df_dict(params, verbose):
     df_dict_jet['QCD'] = pd.concat([df_dict_jet['QCD120'],df_dict_jet['QCD170'],df_dict_jet['QCD300'],df_dict_jet['QCD470']])
     df_dict_cand['QCD'] = pd.concat([df_dict_cand['QCD120'],df_dict_cand['QCD170'],df_dict_cand['QCD300'],df_dict_cand['QCD470']])
     if verbose:
-        print len(df_dict_jet['QCD'])
+        print (len(df_dict_jet['QCD']))
     return df_dict_jet, df_dict_cand
 
 class JetImageGenerator(object):
@@ -145,7 +145,7 @@ class JetImageGenerator(object):
                 cand_df = self.preselection[category](cand_df)
                 return jet_df, cand_df
             except:
-                print 'bad file: %s'%fname
+                print ('bad file: %s'%fname)
                 if fname in self.inputs[category]: self.inputs[category].remove(fname)
         return pd.DataFrame(), pd.DataFrame()
     
