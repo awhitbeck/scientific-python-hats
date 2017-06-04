@@ -46,7 +46,7 @@ def normalize(x):
 def getInputs():
     # get input numpy arrays
     inputs = {}
-    inputs['TT'] = glob.glob('output_TT/*job5*.npy')
+    #inputs['TT'] = glob.glob('output_TT/*job5*.npy')
     inputs['QCD120'] = glob.glob('output_QCD120/*job0*.npy')
     inputs['QCD170'] = glob.glob('output_QCD170/*job0*.npy')
     inputs['QCD300'] = glob.glob('output_QCD300/*job0*.npy')
@@ -70,28 +70,30 @@ def openFiles(inputs):
 def convertToPandas(params,verbose):
     # convert to pandas dataframe
     df_dict = {}
-    df_dict['TT'] = pd.DataFrame(params['TT'],columns=['jet_pt_ak7','jet_tau21_ak7','jet_msd_ak7','jet_ncand_ak7','jet_isW_ak7', 'pthat','mcweight'])
+    #df_dict['TT'] = pd.DataFrame(params['TT'],columns=['jet_pt_ak7','jet_tau21_ak7','jet_msd_ak7','jet_ncand_ak7','jet_isW_ak7', 'pthat','mcweight'])
     for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
         df_dict[QCDbin] = pd.DataFrame(params[QCDbin],columns=['jet_pt_ak7','jet_tau21_ak7','jet_msd_ak7','jet_ncand_ak7','jet_isW_ak7', 'pthat','mcweight'])
 
-    df_dict['TT'] = df_dict['TT'].drop_duplicates()
-    df_dict['TT'] =  df_dict['TT'][(df_dict['TT'].jet_pt_ak7 > 200) & (df_dict['TT'].jet_pt_ak7 < 500) &  (df_dict['TT'].jet_isW_ak7==1)]
+    #df_dict['TT'] = df_dict['TT'].drop_duplicates()
+    #df_dict['TT'] =  df_dict['TT'][(df_dict['TT'].jet_pt_ak7 > 200) & (df_dict['TT'].jet_pt_ak7 < 500) &  (df_dict['TT'].jet_isW_ak7==1)]
 
     for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
         df_dict[QCDbin] = df_dict[QCDbin].drop_duplicates()
-        df_dict[QCDbin] =  df_dict[QCDbin][(df_dict[QCDbin].jet_pt_ak7 > 200) & (df_dict[QCDbin].jet_pt_ak7 < 500) & (df_dict[QCDbin].jet_isW_ak7==0)]
+        df_dict[QCDbin] =  df_dict[QCDbin][(df_dict[QCDbin].jet_pt_ak7 > 100) & (df_dict[QCDbin].jet_pt_ak7 < 600) & (df_dict[QCDbin].jet_isW_ak7==0)]
         # take every 20th jet just to make the training faster and have a sample roughly the size of W jets
-        df_dict[QCDbin] = df_dict[QCDbin].iloc[::20, :]
+        #df_dict[QCDbin] = df_dict[QCDbin].iloc[::20, :]
     
     df_dict['QCD'] = pd.concat([df_dict['QCD120'],df_dict['QCD170'],df_dict['QCD300'],df_dict['QCD470']])
-    df = pd.concat([df_dict['TT'],df_dict['QCD']])
+    df = df_dict['QCD']
+    #df = pd.concat([df_dict['QCD120'],df_dict['QCD170'],df_dict['QCD300'],df_dict['QCD470']])
+    #df = pd.concat([df_dict['TT'],df_dict['QCD']])
 
     if verbose:
-        print (params['TT'].dtype.names)
-        print ('number of W jets: %i'%len(df_dict['TT']))
+        #print (params['TT'].dtype.names)
+        #print ('number of W jets: %i'%len(df_dict['TT']))
         for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
             print ('number of QCD jets in bin %s: %i'%( QCDbin, len(df_dict[QCDbin])))
-        print (df_dict['TT'].iloc[:3])
+        #print (df_dict['TT'].iloc[:3])
         print (df_dict['QCD'].iloc[:3])
 
     return df
@@ -106,12 +108,18 @@ def build_conv_model(nx=30, ny=30):
     layer = Convolution2D(20, 11,11, border_mode='same')(input_layer)
     layer = Activation('tanh')(layer)
     layer = MaxPooling2D(pool_size=(2,2))(layer)
-    layer = Convolution2D(8, 3, 3, border_mode='same')(layer)
+    layer = Convolution2D(10, 7, 7, border_mode='same')(layer)
     layer = Activation('tanh')(layer)
     layer = MaxPooling2D(pool_size=(3,3))(layer)
-    layer = Convolution2D(8, 3, 3, border_mode='same')(layer)
+    layer = Convolution2D(8, 5, 5, border_mode='same')(layer)
     layer = Activation('tanh')(layer)
-    layer = MaxPooling2D(pool_size=(3,3))(layer)
+    layer = MaxPooling2D(pool_size=(2,2))(layer)
+    layer = Convolution2D(6, 5, 5, border_mode='same')(layer)
+    layer = Activation('tanh')(layer)
+    layer = MaxPooling2D(pool_size=(2,2))(layer)
+    layer = Convolution2D(4, 5, 5, border_mode='same')(layer)
+    layer = Activation('tanh')(layer)
+    #layer = MaxPooling2D(pool_size=(3,3))(layer)
     layer = Flatten()(layer)
     # additional features input
     jet_pt_ak7_input = Input(shape=(1,), name='jet_pt_ak7_input')
@@ -119,7 +127,7 @@ def build_conv_model(nx=30, ny=30):
     layer = merge([layer, jet_pt_ak7_input, jet_eta_ak7_input], mode='concat')
     #layer = Dropout(0.20)(layer)
     layer = Dense(20, activation='softplus')(layer)
-    layer = Dropout(0.10)(layer)
+    layer = Dropout(0.08)(layer)
     #other activation option 'sigmoid' better for bounded problem
     output_layer = Dense(1, activation='linear', name='main_output')(layer)
     model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input], output=output_layer)
@@ -136,11 +144,12 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
     colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
     histories = []
     models = []
+    print ("Now going through fitModels")
     for cv, color in zip(range(0,1), colors):
         conv_model = build_conv_model(nx,ny)
         if verbosity:
             conv_model.summary()
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20)
         jetImageGenerator = JetImageGenerator(2 if not generator else 32)
         if generator:
             history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
@@ -151,7 +160,8 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                 #X_test = np.empty(16,dtype=object)
                 #f = FloatProgress(min=0, max=320)
                 #display(f)
-                for i in tqdm(range(12800)):
+                for i in tqdm(range(len(df_dict_jet['QCD']))):
+                #for i in tqdm(range(37061)):
                     #f.value += 1
                     #X_train, encoded_Y_train = gen1.next()
                     if i==0:
@@ -210,7 +220,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
             X_train[2] /= np.max(np.abs(2.5),axis=0)
             X_test[2] /= np.max(np.abs(2.5),axis=0)
 
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=512, verbose=verbosity, callbacks=[early_stopping])
+            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=1024, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
         models.append(conv_model)
     return models, histories

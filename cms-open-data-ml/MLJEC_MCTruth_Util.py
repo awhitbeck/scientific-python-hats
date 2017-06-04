@@ -71,31 +71,34 @@ def rotate_and_reflect(x,y,w):
 def prepare_df_dict(params, verbose):
     # now let's prepare some jet images
     if verbose:
-        print (params['TT'].dtype.names)
+        print (params['QCD120'].dtype.names)
 
     df_dict_jet = {}
+    df_dict_cand = {}
+    '''
     df_dict_jet['TT'] = pd.DataFrame(params['TT'],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
     df_dict_jet['TT'] = df_dict_jet['TT'].drop_duplicates()
     df_dict_jet['TT'] =  df_dict_jet['TT'][(df_dict_jet['TT'].jet_pt_ak7 > 200) & (df_dict_jet['TT'].jet_pt_ak7 < 500) &  (df_dict_jet['TT'].jet_isW_ak7==1)]
-
-    df_dict_cand = {}
+    
     df_dict_cand['TT'] = pd.DataFrame(params['TT'],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
     df_dict_cand['TT'] =  df_dict_cand['TT'][(df_dict_cand['TT'].jet_pt_ak7 > 200) & (df_dict_cand['TT'].jet_pt_ak7 < 500) &  (df_dict_cand['TT'].jet_isW_ak7==1)]
+    '''
 
 
     for QCDbin in ['QCD120','QCD170','QCD300','QCD470']:
         df_dict_jet[QCDbin] = pd.DataFrame(params[QCDbin],columns=['run', 'lumi', 'event', 'met', 'sumet', 'rho', 'pthat', 'mcweight', 'njet_ak7', 'jet_pt_ak7', 'jet_eta_ak7', 'jet_phi_ak7', 'jet_E_ak7', 'jet_msd_ak7', 'jet_area_ak7', 'jet_jes_ak7', 'jet_tau21_ak7', 'jet_isW_ak7', 'jet_ncand_ak7','ak7pfcand_ijet'])
         df_dict_jet[QCDbin] = df_dict_jet[QCDbin].drop_duplicates()
-        df_dict_jet[QCDbin] =  df_dict_jet[QCDbin][(df_dict_jet[QCDbin].jet_pt_ak7 > 200) & (df_dict_jet[QCDbin].jet_pt_ak7 < 500) &  (df_dict_jet[QCDbin].jet_isW_ak7==0)]
+        df_dict_jet[QCDbin] =  df_dict_jet[QCDbin][(df_dict_jet[QCDbin].jet_pt_ak7 > 100) & (df_dict_jet[QCDbin].jet_pt_ak7 < 600) &  (df_dict_jet[QCDbin].jet_isW_ak7==0)]
         # take every 20th jet just to make the training faster and have a sample roughly the size of W jets
-        df_dict_jet[QCDbin] = df_dict_jet[QCDbin].iloc[::20, :]
-    
+        #df_dict_jet[QCDbin] = df_dict_jet[QCDbin].iloc[::20, :]
+        
         df_dict_cand[QCDbin] = pd.DataFrame(params[QCDbin],columns=['event', 'jet_pt_ak7', 'jet_isW_ak7', 'ak7pfcand_pt', 'ak7pfcand_eta', 'ak7pfcand_phi', 'ak7pfcand_id', 'ak7pfcand_charge', 'ak7pfcand_ijet'])
-        df_dict_cand[QCDbin] =  df_dict_cand[QCDbin][(df_dict_cand[QCDbin].jet_pt_ak7 > 200) & (df_dict_cand[QCDbin].jet_pt_ak7 < 500) &  (df_dict_cand[QCDbin].jet_isW_ak7==0)]
+        df_dict_cand[QCDbin] =  df_dict_cand[QCDbin][(df_dict_cand[QCDbin].jet_pt_ak7 > 100) & (df_dict_cand[QCDbin].jet_pt_ak7 < 600) &  (df_dict_cand[QCDbin].jet_isW_ak7==0)]
     
     df_dict_jet['QCD'] = pd.concat([df_dict_jet['QCD120'],df_dict_jet['QCD170'],df_dict_jet['QCD300'],df_dict_jet['QCD470']])
     df_dict_cand['QCD'] = pd.concat([df_dict_cand['QCD120'],df_dict_cand['QCD170'],df_dict_cand['QCD300'],df_dict_cand['QCD470']])
     if verbose:
+        print ("Length of QCD jets = ")
         print (len(df_dict_jet['QCD']))
     return df_dict_jet, df_dict_cand
 
@@ -114,15 +117,15 @@ class JetImageGenerator(object):
 
         self.batch_size = batch_size
 
-        self.categories = ['TT','QCD']
+        self.categories = ['QCD']
         self.file_pattern = {
-            'TT': 'output_TT/*.npy',
+            #'TT': 'output_TT/*.npy',
             'QCD': 'output_QCD*/*.npy'
         }
         
         self.preselection = {
-            'TT': lambda df: df[(df.jet_pt_ak7 > 200) & (df.jet_pt_ak7 < 500) &  (df.jet_isW_ak7==1)],
-            'QCD': lambda df: df[(df.jet_pt_ak7 > 200) & (df.jet_pt_ak7 < 500) &  (df.jet_isW_ak7==0)],
+            #'TT': lambda df: df[(df.jet_pt_ak7 > 200) & (df.jet_pt_ak7 < 500) &  (df.jet_isW_ak7==1)],
+            'QCD': lambda df: df[(df.jet_pt_ak7 > 100) & (df.jet_pt_ak7 < 600) &  (df.jet_isW_ak7==0)],
         }
                 
         # list of files
