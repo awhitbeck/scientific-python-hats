@@ -3,10 +3,10 @@ import pandas as pd
 from math import sqrt,tanh
 def raw_data():
     np_data={}
-    np_data['QCD120'] = np.load("CMSOpenData/output_QCD120/params0.npy_job0_file0.npy")
-    np_data['QCD170'] = np.load("CMSOpenData/output_QCD170/params0.npy_job0_file0.npy")
-    np_data['QCD300'] = np.load("CMSOpenData/output_QCD300/params0.npy_job0_file0.npy")
-    np_data['QCD470'] = np.load("CMSOpenData/output_QCD470/params0.npy_job0_file0.npy")
+    np_data['QCD120'] = np.load("/Users/awhitbe1/deepJEC/CMSOpenData/output_QCD120/params0.npy_job0_file0.npy")
+    np_data['QCD170'] = np.load("/Users/awhitbe1/deepJEC/CMSOpenData/output_QCD170/params0.npy_job0_file0.npy")
+    np_data['QCD300'] = np.load("/Users/awhitbe1/deepJEC/CMSOpenData/output_QCD300/params0.npy_job0_file0.npy")
+    np_data['QCD470'] = np.load("/Users/awhitbe1/deepJEC/CMSOpenData/output_QCD470/params0.npy_job0_file0.npy")
     pd_data={}
     for sample in np_data :
         pd_data[sample] = pd.DataFrame(np_data[sample])
