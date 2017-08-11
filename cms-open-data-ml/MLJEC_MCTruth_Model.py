@@ -1,8 +1,8 @@
 # coding: utf-8
 import os, getpass
-if getpass.getuser()=='jovyan':
-    os.environ['KERAS_BACKEND'] = 'tensorflow'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+#if getpass.getuser()=='jovyan':
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
@@ -124,13 +124,14 @@ def build_conv_model(nx=30, ny=30):
     # additional features input
     jet_pt_ak7_input = Input(shape=(1,), name='jet_pt_ak7_input')
     jet_eta_ak7_input = Input(shape=(1,), name='jet_eta_ak7_input')
-    layer = merge([layer, jet_pt_ak7_input, jet_eta_ak7_input], mode='concat')
+    jet_phi_ak7_input = Input(shape=(1,), name='jet_phi_ak7_input')
+    layer = merge([layer, jet_pt_ak7_input, jet_eta_ak7_input, jet_phi_ak7_input], mode='concat')
     #layer = Dropout(0.20)(layer)
     layer = Dense(20, activation='softplus')(layer)
     layer = Dropout(0.08)(layer)
     #other activation option 'sigmoid' better for bounded problem
     output_layer = Dense(1, activation='linear', name='main_output')(layer)
-    model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input], output=output_layer)
+    model = Model(input=[input_layer,jet_pt_ak7_input,jet_eta_ak7_input,jet_phi_ak7_input], output=output_layer)
     #model = Model(input=input_layer, output=output_layer)
     #model.compile(optimizer='adam', loss='kullback_leibler_divergence', metrics=['accuracy','precision','mse','msle'])
     model.compile(optimizer='adam', loss='mse', metrics=['accuracy','precision','mse','msle'])
@@ -154,7 +155,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
         if generator:
             history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
         else:
-            if not os.path.exists("train_test_data.h5"):
+            if not os.path.exists("train_test_data_new_withphi.h5"):
                 gen1 = jetImageGenerator.generator(crossvalidation=int(cv))
                 #X_train = np.empty(16,dtype=object)
                 #X_test = np.empty(16,dtype=object)
@@ -172,17 +173,19 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                         X_train[0] = np.vstack((X_train[0],X_train_tmp[0]))
                         X_train[1] = np.hstack((X_train[1],X_train_tmp[1]))
                         X_train[2] = np.hstack((X_train[2],X_train_tmp[2]))
+                        X_train[3] = np.hstack((X_train[3],X_train_tmp[3]))
                         encoded_Y_train = np.hstack((encoded_Y_train,encoded_Y_train_tmp))
                         X_test_tmp, encoded_Y_test_tmp = gen1.next()
                         X_test[0] = np.vstack((X_test[0],X_test_tmp[0]))
                         X_test[1] = np.hstack((X_test[1],X_test_tmp[1]))
                         X_test[2] = np.hstack((X_test[2],X_test_tmp[2]))
+                        X_test[3] = np.hstack((X_test[3],X_test_tmp[3]))
                         encoded_Y_test = np.hstack((encoded_Y_test,encoded_Y_test_tmp))
                     
                 #np.savez("X_train.npz",*(X_train + [encoded_Y_train]))
                 #np.savez("X_test.npz",*(X_test + [encoded_Y_test]))
-                hf = h5py.File("train_test_data.h5",'w')
-                for j in range(0,3):
+                hf = h5py.File("train_test_data_new_withphi.h5",'w')
+                for j in range(0,4):
                     hf['X_%d_train'%j] = X_train[j]
                     hf['X_%d_test'%j] = X_test[j]
                 hf['encoded_Y_train'] = encoded_Y_train
@@ -195,11 +198,11 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
                 #data_test = np.load("X_test.npz")
                 #X_test = [data_test[0],data_test[1],data_test[2]]
                 #encoded_Y_test = data_test[3]
-                hf = h5py.File("train_test_data.h5",'r')
+                hf = h5py.File("train_test_data_new_withphi.h5",'r')
                 encoded_Y_train = hf['encoded_Y_train'].value
                 encoded_Y_test = hf['encoded_Y_test'].value
-                X_train = [hf['X_%d_train'%j].value for j in range(0,3)]
-                X_test = [hf['X_%d_train'%j].value for j in range(0,3)]
+                X_train = [hf['X_%d_train'%j].value for j in range(0,4)]
+                X_test = [hf['X_%d_test'%j].value for j in range(0,4)]
                 print (X_train[0].shape)
 
 
@@ -219,6 +222,8 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
             #X_test[2] /= np.max(np.abs(X_test[2]),axis=0)
             X_train[2] /= np.max(np.abs(2.5),axis=0)
             X_test[2] /= np.max(np.abs(2.5),axis=0)
+            X_train[3] /= np.max(np.abs(2.5),axis=0)
+            X_test[3] /= np.max(np.abs(2.5),axis=0)
 
             history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=1024, verbose=verbosity, callbacks=[early_stopping])
         histories.append(history)
@@ -236,12 +241,12 @@ def saveModel(model,verbose):
 
 def loadModel(verbose):
     # load json and create model
-    json_file = open('model.json', 'r')
+    json_file = open('Models_JR_June16/model_4.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
     loaded_model = model_from_json(loaded_model_json)
     # load weights into new model
-    loaded_model.load_weights("model.h5")
+    loaded_model.load_weights("Models_JR_June16/model_4.h5")
     if verbose:
         print("Loaded model from disk")
     return [loaded_model]
