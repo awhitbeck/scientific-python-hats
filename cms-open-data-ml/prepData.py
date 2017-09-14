@@ -1,16 +1,38 @@
 import numpy as np
 import pandas as pd
+import glob
 from math import sqrt,tanh
 def raw_data():
+    '''
+    filelist = glob.glob("/inputdata/cms-open-data-ml/output_QCD120/*.npy")
+    df = pd.DataFrame()
+    list_ = []
+    for f in filelist :
+        np_data = np.load(f)
+        df = pd.DataFrame(np_data)
+        list_.append(df)        
+    df = pd.concat(list_)
+    '''
     np_data={}
-    np_data['QCD120'] = np.load("/inputdata/cms-open-data-ml/output_QCD120/params0.npy_job1_file0.npy")
-    np_data['QCD170'] = np.load("/inputdata/cms-open-data-ml/output_QCD170/params0.npy_job1_file0.npy")
-    np_data['QCD300'] = np.load("/inputdata/cms-open-data-ml/output_QCD300/params0.npy_job1_file0.npy")
-    np_data['QCD470'] = np.load("/inputdata/cms-open-data-ml/output_QCD470/params0.npy_job1_file0.npy")
+    np_data['QCD120'] = np.load("/inputdata/cms-open-data-ml/output_QCD120/params0.npy_job0_file0.npy")
+    np_data['QCD170'] = np.load("/inputdata/cms-open-data-ml/output_QCD170/params0.npy_job0_file0.npy")
+    np_data['QCD300'] = np.load("/inputdata/cms-open-data-ml/output_QCD300/params0.npy_job0_file0.npy")
+    np_data['QCD470'] = np.load("/inputdata/cms-open-data-ml/output_QCD470/params0.npy_job0_file0.npy")
+    np_data['QCD120a'] = np.load("/inputdata/cms-open-data-ml/output_QCD120/params0.npy_job1_file0.npy")
+    np_data['QCD170a'] = np.load("/inputdata/cms-open-data-ml/output_QCD170/params0.npy_job1_file0.npy")
+    np_data['QCD300a'] = np.load("/inputdata/cms-open-data-ml/output_QCD300/params0.npy_job1_file0.npy")
+    np_data['QCD470a'] = np.load("/inputdata/cms-open-data-ml/output_QCD470/params0.npy_job1_file0.npy")
+    np_data['QCD120b'] = np.load("/inputdata/cms-open-data-ml/output_QCD120/params0.npy_job2_file0.npy")
+    np_data['QCD170b'] = np.load("/inputdata/cms-open-data-ml/output_QCD170/params0.npy_job2_file0.npy")
+    np_data['QCD300b'] = np.load("/inputdata/cms-open-data-ml/output_QCD300/params0.npy_job2_file0.npy")
+    np_data['QCD470b'] = np.load("/inputdata/cms-open-data-ml/output_QCD470/params0.npy_job2_file0.npy")
     pd_data={}
     for sample in np_data :
         pd_data[sample] = pd.DataFrame(np_data[sample])
-    df = pd.concat([pd_data['QCD120'],pd_data['QCD170'],pd_data['QCD300'],pd_data['QCD470']])
+    df = pd.concat([pd_data['QCD120'],pd_data['QCD170'],pd_data['QCD300'],pd_data['QCD470'],
+                   pd_data['QCD120a'],pd_data['QCD170a'],pd_data['QCD300a'],pd_data['QCD470a'],
+                   pd_data['QCD120b'],pd_data['QCD170b'],pd_data['QCD300b'],pd_data['QCD470b']])
+
     df.reset_index(inplace=True)
         
     df['jetPx'] = map(np.cos,df['jet_phi_ak7'])*df['jet_pt_ak7']
