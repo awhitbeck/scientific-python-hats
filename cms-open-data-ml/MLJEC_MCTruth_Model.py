@@ -43,15 +43,25 @@ def normalize(x):
     # utility function to normalize a tensor by its L2 norm
     return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
 
-def getInputs():
+def getInputs(base_dir='./'):
     # get input numpy arrays
     inputs = {}
     #inputs['TT'] = glob.glob('output_TT/*job5*.npy')
-    inputs['QCD120'] = glob.glob('output_QCD120/*job0*.npy')
-    inputs['QCD170'] = glob.glob('output_QCD170/*job0*.npy')
-    inputs['QCD300'] = glob.glob('output_QCD300/*job0*.npy')
-    inputs['QCD470'] = glob.glob('output_QCD470/*job0*.npy')
+    inputs['QCD120'] = glob.glob(base_dir+'output_QCD120/*job0*.npy')
+    inputs['QCD170'] = glob.glob(base_dir+'output_QCD170/*job0*.npy')
+    inputs['QCD300'] = glob.glob(base_dir+'output_QCD300/*job0*.npy')
+    inputs['QCD470'] = glob.glob(base_dir+'output_QCD470/*job0*.npy')
     return inputs
+
+def getData(base_dir='./'):
+    # get input numpy arrays
+    inputs = {}
+    #inputs['TT'] = glob.glob('output_TT/*job5*.npy')
+    inputs['QCD120'] = pd.DataFrame(np.load(base_dir+'output_QCD120/params0.npy_job0_file0.npy'))
+    inputs['QCD170'] = pd.DataFrame(np.load(base_dir+'output_QCD170/params0.npy_job0_file0.npy'))
+    inputs['QCD300'] = pd.DataFrame(np.load(base_dir+'output_QCD300/params0.npy_job0_file0.npy'))
+    inputs['QCD470'] = pd.DataFrame(np.load(base_dir+'output_QCD470/params0.npy_job0_file0.npy'))
+    return pd.concat(inputs[f] for f in inputs)
 
 def openFiles(inputs):
     list_params = {}
@@ -225,7 +235,7 @@ def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
         models.append(conv_model)
     return models, histories
 
-def saveModel(model,verbose):
+def saveModel(model,verbose=False):
     # serialize model to JSON
     model_json = model.to_json()
     with open("model.json", "w") as json_file:
@@ -234,17 +244,17 @@ def saveModel(model,verbose):
     model.save_weights("model.h5")
     print("Saved model to disk")
 
-def loadModel(verbose):
+def loadModel(file,verbose=False):
     # load json and create model
-    json_file = open('model.json', 'r')
+    json_file = open(file+'.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
     loaded_model = model_from_json(loaded_model_json)
     # load weights into new model
-    loaded_model.load_weights("model.h5")
+    loaded_model.load_weights(file+".h5")
     if verbose:
         print("Loaded model from disk")
-    return [loaded_model]
+    return loaded_model
 
 ####################
 # Global Variables #
