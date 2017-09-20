@@ -26,30 +26,30 @@ class random_forest_regression:
 		RMSE_vec = map(lambda x : x*x,diff)
 		self.SSE += sum(RMSE_vec)
 
-	def score(self,data_frame,verbose=False):
+	def score(self,data_frame,verbose=False,append=""):
 		n=float(len(data_frame[self.regressor]))
-		diff = data_frame['prediction']-data_frame[self.regressor]
+		diff = data_frame['prediction'+append]-data_frame[self.regressor]
 		RMSE_vec = map(lambda x : x*x,diff)
 		self.score_ = sqrt(sum(RMSE_vec)/n)
 		if verbose : 
 			print "RMSE:",self.score_
 		return self.score_
 
-	def fit(self,data_frame,verbose=False):
+	def fit(self,data_frame,verbose=False,append=""):
 		self.model = RandomForestRegressor(max_depth=self.max_depth, random_state=2,n_estimators=self.n_trees)
 		self.model.fit(data_frame[self.factors], data_frame[self.regressor])
 		
-		data_frame['prediction'] = self.model.predict(data_frame[self.factors])
+		data_frame['prediction'+append] = self.model.predict(data_frame[self.factors])
 		if verbose : 
 			print "train:"
 			self.score(data_frame,verbose)
 
-	def test(self,data_frame,verbose=False):
-		data_frame['prediction'] = self.model.predict(data_frame[self.factors])
-		data_frame['residual'] = data_frame['prediction']-data_frame[self.regressor]
+	def test(self,data_frame,verbose=False,append=""):
+		data_frame['prediction'+append] = self.model.predict(data_frame[self.factors])
+		data_frame['residual'+append] = data_frame['prediction'+append]-data_frame[self.regressor]
 		if verbose :
 			print "test:"
-		self.score(data_frame,verbose)
+		self.score(data_frame,verbose,append)
 		
 def example():
 	df_perjet = jet_level_data()
