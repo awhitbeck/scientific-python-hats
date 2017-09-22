@@ -31,8 +31,6 @@ from itertools import cycle
 from scipy import interp
 #from ipywidgets import FloatProgress
 #from IPython.display import display
-#https://github.com/tqdm/tqdm#latest-conda-release
-from tqdm import trange, tqdm
 from MLJEC_MCTruth_Util import rotate_and_reflect, prepare_df_dict, JetImageGenerator
 import MLJEC_MCTruth_Plot as plotter
 # fix random seed for reproducibility
@@ -145,95 +143,6 @@ def build_conv_model(nx=30, ny=30):
     #model.compile(optimizer='adam', loss='kullback_leibler_divergence', metrics=['accuracy','precision','mse','msle'])
     model.compile(optimizer='adam', loss='mse', metrics=['accuracy','precision','mse','msle'])
     return model
-
-def fitModels(df_dict_jet, df_dict_cand,nx,ny,generator,verbosity,debug):
-    # Run classifier with cross-validation and plot ROC curves
-    #kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
-    #early_stopping = EarlyStopping(monitor='val_loss', patience=10)
-
-    colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
-    histories = []
-    models = []
-    print ("Now going through fitModels")
-    for cv, color in zip(range(0,1), colors):
-        conv_model = build_conv_model(nx,ny)
-        if verbosity:
-            conv_model.summary()
-        early_stopping = EarlyStopping(monitor='val_loss', patience=20)
-        jetImageGenerator = JetImageGenerator(2 if not generator else 32)
-        if generator:
-            history = conv_model.fit_generator(jetImageGenerator.generator(crossvalidation=int(cv)), 128, validation_data=jetImageGenerator.generator(test=True), nb_val_samples=128, nb_epoch=25, verbose=verbosity, callbacks=[early_stopping])
-        else:
-            if not os.path.exists("train_test_data.h5"):
-                gen1 = jetImageGenerator.generator(crossvalidation=int(cv))
-                #X_train = np.empty(16,dtype=object)
-                #X_test = np.empty(16,dtype=object)
-                #f = FloatProgress(min=0, max=320)
-                #display(f)
-                for i in tqdm(range(len(df_dict_jet['QCD']))):
-                #for i in tqdm(range(37061)):
-                    #f.value += 1
-                    #X_train, encoded_Y_train = gen1.next()
-                    if i==0:
-                        X_train, encoded_Y_train = gen1.next()
-                        X_test, encoded_Y_test = gen1.next()
-                    else:
-                        X_train_tmp, encoded_Y_train_tmp = gen1.next()
-                        X_train[0] = np.vstack((X_train[0],X_train_tmp[0]))
-                        X_train[1] = np.hstack((X_train[1],X_train_tmp[1]))
-                        X_train[2] = np.hstack((X_train[2],X_train_tmp[2]))
-                        encoded_Y_train = np.hstack((encoded_Y_train,encoded_Y_train_tmp))
-                        X_test_tmp, encoded_Y_test_tmp = gen1.next()
-                        X_test[0] = np.vstack((X_test[0],X_test_tmp[0]))
-                        X_test[1] = np.hstack((X_test[1],X_test_tmp[1]))
-                        X_test[2] = np.hstack((X_test[2],X_test_tmp[2]))
-                        encoded_Y_test = np.hstack((encoded_Y_test,encoded_Y_test_tmp))
-                    
-                #np.savez("X_train.npz",*(X_train + [encoded_Y_train]))
-                #np.savez("X_test.npz",*(X_test + [encoded_Y_test]))
-                hf = h5py.File("train_test_data.h5",'w')
-                for j in range(0,3):
-                    hf['X_%d_train'%j] = X_train[j]
-                    hf['X_%d_test'%j] = X_test[j]
-                hf['encoded_Y_train'] = encoded_Y_train
-                hf['encoded_Y_test'] = encoded_Y_test
-                hf.close()
-            else:
-                #data_train = np.load("X_train.npz")
-                #X_train = [data_train[0],data_train[1],data_train[2]]
-                #encoded_Y_train = data_train[3]
-                #data_test = np.load("X_test.npz")
-                #X_test = [data_test[0],data_test[1],data_test[2]]
-                #encoded_Y_test = data_test[3]
-                hf = h5py.File("train_test_data.h5",'r')
-                encoded_Y_train = hf['encoded_Y_train'].value
-                encoded_Y_test = hf['encoded_Y_test'].value
-                X_train = [hf['X_%d_train'%j].value for j in range(0,3)]
-                X_test = [hf['X_%d_train'%j].value for j in range(0,3)]
-                print (X_train[0].shape)
-
-
-            np.clip(X_train[0],0,100,out=X_train[0])
-            np.clip(X_test[0],0,100,out=X_test[0])
-            scaler = StandardScaler()
-            X_train[1] = scaler.fit_transform(X_train[1].reshape(-1,1))
-            X_test[1] = scaler.transform(X_test[1].reshape(-1,1))
-            #X_train[1] -= 200
-            #X_train[1] /= 100
-            #X_test[1] -= 200
-            #X_test[1] /= 100
-
-            if not os.path.exists("scaler.pkl"):
-                joblib.dump(scaler, 'scaler.pkl') 
-            #X_train[2] /= np.max(np.abs(X_train[2]),axis=0)
-            #X_test[2] /= np.max(np.abs(X_test[2]),axis=0)
-            X_train[2] /= np.max(np.abs(2.5),axis=0)
-            X_test[2] /= np.max(np.abs(2.5),axis=0)
-
-            history = conv_model.fit(X_train, encoded_Y_train, validation_data=(X_test, encoded_Y_test), nb_epoch=100, batch_size=1024, verbose=verbosity, callbacks=[early_stopping])
-        histories.append(history)
-        models.append(conv_model)
-    return models, histories
 
 def saveModel(model,verbose=False):
     # serialize model to JSON
