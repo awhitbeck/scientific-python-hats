@@ -42,7 +42,7 @@ class random_forest_regression:
 		data_frame['prediction'+append] = self.model.predict(data_frame[self.factors])
 		if verbose : 
 			print "train:"
-			self.score(data_frame,verbose)
+			self.score(data_frame,verbose,append)
 
 	def test(self,data_frame,verbose=False,append=""):
 		data_frame['prediction'+append] = self.model.predict(data_frame[self.factors])
