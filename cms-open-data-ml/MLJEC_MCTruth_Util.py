@@ -25,7 +25,7 @@ def rotate_and_reflect(x,y,w):
         dv = np.matrix([[ix],[iy]])-np.matrix([[x[0]],[y[0]]])
         dR = np.linalg.norm(dv)
         thisPt = iw
-        if dR > 0.35 and thisPt > maxPt:
+        if dR > 0.25 and thisPt > maxPt:
             maxPt = thisPt
             # rotation in eta-phi plane c.f  https://arxiv.org/abs/1407.5675 and https://arxiv.org/abs/1511.05190:
             # theta = -np.arctan2(iy,ix)-np.radians(90)
