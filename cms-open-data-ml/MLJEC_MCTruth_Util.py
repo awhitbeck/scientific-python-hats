@@ -36,9 +36,6 @@ def rotate_and_reflect(x,y,w):
             theta = np.arctan2(py,pz)+np.radians(90)
             #print "px,py,pz,theta:",px,py,pz,theta
 
-    if maxPt == -1 : 
-        print "ERROR"
-
     c, s = np.cos(theta), np.sin(theta)
     R = np.matrix('{} {}; {} {}'.format(c, -s, s, c))
     for ix, iy, iw in zip(x, y, w):
