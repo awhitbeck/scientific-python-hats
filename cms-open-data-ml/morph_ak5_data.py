@@ -7,9 +7,13 @@ import matplotlib.pyplot as plt
 import itertools 
 
 inputs = {}
+inputs['QCD15'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_15_30.npy']
+inputs['QCD30'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_30_50.npy']
+inputs['QCD50'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_50_80.npy']
 inputs['QCD80'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_80_120.npy']
 inputs['QCD120'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_120_170.npy']
 inputs['QCD170'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_170_300.npy']
+inputs['QCD300'] = ['/Users/awhitbe1/Dropbox/multivariateJECs/ak5_data/QCD_pt_300_470.npy']
 sample_dfs={}
 for key, input_files in inputs.iteritems():
     for in_file in input_files:
@@ -19,8 +23,16 @@ for key, input_files in inputs.iteritems():
         except ValueError:
             print 'bad file: %s'%in_file     
             
-df = pd.concat([sample_dfs['QCD80'],sample_dfs['QCD120'],sample_dfs['QCD170']])
-#df = df.iloc[:1000000]
+df = pd.concat([sample_dfs['QCD15'],
+                sample_dfs['QCD30'],
+                sample_dfs['QCD50'],
+                sample_dfs['QCD80'],
+                sample_dfs['QCD120'],
+                sample_dfs['QCD170'],
+                sample_dfs['QCD300']
+
+                ])
+#df = df.iloc[:500000]
 df.head()
 
 df_vec_dict = {}
