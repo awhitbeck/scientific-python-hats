@@ -11,12 +11,14 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-i", "--inFile", dest="input_filename",
                   help="file to load data from",default="new_ak5.pkl")
-parser.add_option("-i", "--outFile", dest="output_filename",
+parser.add_option("-m", "--modelFile", dest="model_filename",
+                  help="file to load model from",default="model_eta_dense_pt_dense_updatedJuly14")
+parser.add_option("-o", "--outFile", dest="output_filename",
                   help="file to save mode to (leave off extension)",default="model_ak5_eta_dense_pt_dense")
 
 (options, args) = parser.parse_args()
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-model = loadModel('model_eta_dense_pt_dense_updatedJuly14')
+model = loadModel(options.model_filename)
 model.summary()
 
 df = pd.read_pickle(options.input_filename)
