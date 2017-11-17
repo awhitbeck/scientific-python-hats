@@ -21,6 +21,8 @@ df.head()
 
 df = df.sample(frac=1)
 df_train,df_test = np.array_split(df,2)
+#print df_train.head()
+print df_test.head()
 
 jet_image_train = np.array(map(lambda x : x[0] , df_train['jet_image']))
 inputs_train = [jet_image_train.reshape([-1,30,30,1]),np.array(df_train['jet_pt_scaled']),np.array(df_train['jet_eta_scaled'])]
@@ -34,7 +36,7 @@ from keras.callbacks import EarlyStopping
 early_stopping = EarlyStopping(monitor='val_loss', patience=20)
 
 history=model.fit(inputs_train, np.array(df_train['jet_jes']), validation_data=(inputs_test, np.array(df_test['jet_jes'])), 
-                    nb_epoch=100, batch_size=1024, verbose=1, callbacks=[early_stopping])
+                     nb_epoch=1, batch_size=1024, verbose=1, callbacks=[early_stopping])
 
 val_loss = np.asarray(history.history['val_loss'])
 loss = np.asarray(history.history['loss'])
