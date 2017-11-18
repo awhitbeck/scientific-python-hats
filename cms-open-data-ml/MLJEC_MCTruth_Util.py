@@ -179,6 +179,7 @@ class JetImageGenerator(object):
         cat_y = {cat:np.array([]) for cat in self.categories}
         cat_z = {cat:np.array([]) for cat in self.categories}
         cat_t = {cat:np.array([]) for cat in self.categories}
+        cat_u = {cat:np.array([]) for cat in self.categories}
         
         kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
         
@@ -221,11 +222,12 @@ class JetImageGenerator(object):
                     y = jet_df.values[:,self.NDIM]
                     z = jet_df.values[:,self.jet_columns.index('jet_pt_ak7')]
                     t = jet_df.values[:,self.jet_columns.index('jet_eta_ak7')]
+                    u = jet_df.values[:,self.jet_columns.index('jet_phi_ak7')]
                     #encoder = LabelEncoder()
                     #encoder.fit(y)
                     #encoded_y = encoder.transform(y)
                     #data_train, data_test = list(kfold.split(X, encoded_y))[int(crossvalidation)]
-                    mixed = list(zip(X,y,z,t))
+                    mixed = list(zip(X,y,z,t,u))
                     np.random.shuffle(mixed) 
                     data_train = mixed[:int(len(mixed)*0.4)]
                     data_test = mixed[int(len(mixed)*0.4):]
@@ -235,10 +237,12 @@ class JetImageGenerator(object):
                     y = np.array([C[1] for C in sample])
                     z = np.array([C[2] for C in sample])
                     t = np.array([C[3] for C in sample])
+                    u = np.array([C[4] for C in sample])
                     cat_X[cat] = np.vstack((cat_X[cat],X)) if cat_X[cat].size else X
                     cat_y[cat] = np.hstack((cat_y[cat],y)) if cat_y[cat].size else y
                     cat_z[cat] = np.hstack((cat_z[cat],z)) if cat_z[cat].size else z
                     cat_t[cat] = np.hstack((cat_t[cat],t)) if cat_t[cat].size else t
+                    cat_u[cat] = np.hstack((cat_u[cat],u)) if cat_u[cat].size else u
                     icat[cat] += 1
 
             # build combined sample based on batch_size
@@ -246,21 +250,25 @@ class JetImageGenerator(object):
             all_y = np.array([])
             all_z = np.array([])
             all_t = np.array([])
+            all_u = np.array([])
             for cat in self.categories:
                 X = cat_X[cat][:percat]
                 y = cat_y[cat][:percat]
                 z = cat_z[cat][:percat]
                 t = cat_t[cat][:percat]
+                u = cat_u[cat][:percat]
                 cat_X[cat] = cat_X[cat][percat:]
                 cat_y[cat] = cat_y[cat][percat:]
                 cat_z[cat] = cat_z[cat][percat:]
                 cat_t[cat] = cat_t[cat][percat:]
+                cat_u[cat] = cat_u[cat][percat:]
                 all_X = np.vstack((all_X,X)) if all_X.size else X
                 all_y = np.hstack((all_y,y)) if all_y.size else y
                 all_z = np.hstack((all_z,z)) if all_z.size else z
                 all_t = np.hstack((all_t,t)) if all_t.size else t
+                all_u = np.hstack((all_u,u)) if all_u.size else u
 
-            yield [all_X, all_z, all_t], all_y
+            yield [all_X, all_z, all_t, all_u], all_y
             #yield all_X, all_y
 
     def prepare_jet_images_for_training(self,jet_df,cand_df,test=False):
@@ -269,6 +277,7 @@ class JetImageGenerator(object):
         cat_y = {cat:np.array([]) for cat in self.categories}
         cat_z = {cat:np.array([]) for cat in self.categories}
         cat_t = {cat:np.array([]) for cat in self.categories}
+        cat_u = {cat:np.array([]) for cat in self.categories}
 
         kfold = StratifiedKFold(n_splits=2, shuffle=True,  random_state=seed)
         
@@ -301,7 +310,8 @@ class JetImageGenerator(object):
             y = jet_df[cat].values[:,self.jet_columns.index('jet_jes_ak7')]
             z = jet_df[cat].values[:,self.jet_columns.index('jet_pt_ak7')]
             t = jet_df[cat].values[:,self.jet_columns.index('jet_eta_ak7')]
-            mixed = list(zip(X,y,z,t))
+            u = jet_df[cat].values[:,self.jet_columns.index('jet_phi_ak7')]
+            mixed = list(zip(X,y,z,t,u))
             np.random.shuffle(mixed)
             data_train = mixed[:int(len(mixed)*0.4)]
             data_test = mixed[int(len(mixed)*0.4):]
@@ -311,10 +321,12 @@ class JetImageGenerator(object):
             y = np.array([C[1] for C in sample])
             z = np.array([C[2] for C in sample])
             t = np.array([C[3] for C in sample])
+            u = np.array([C[4] for C in sample])
             cat_X[cat] = np.vstack((cat_X[cat],X)) if cat_X[cat].size else X
             cat_y[cat] = np.hstack((cat_y[cat],y)) if cat_y[cat].size else y
             cat_z[cat] = np.hstack((cat_z[cat],z)) if cat_z[cat].size else z
             cat_t[cat] = np.hstack((cat_t[cat],t)) if cat_t[cat].size else t
+            cat_u[cat] = np.hstack((cat_u[cat],u)) if cat_u[cat].size else u
             icat[cat] += 1
             
         # build combined sample based on batch_size
@@ -322,18 +334,22 @@ class JetImageGenerator(object):
         all_y = np.array([])
         all_z = np.array([])
         all_t = np.array([])
+        all_u = np.array([])
         for cat in self.categories:
             X = cat_X[cat][:percat]
             y = cat_y[cat][:percat]
             z = cat_z[cat][:percat]
             t = cat_t[cat][:percat]
+            u = cat_u[cat][:percat]
             cat_X[cat] = cat_X[cat][percat:]
             cat_y[cat] = cat_y[cat][percat:]
             cat_z[cat] = cat_z[cat][percat:]
             cat_t[cat] = cat_t[cat][percat:]
+            cat_u[cat] = cat_u[cat][percat:]
             all_X = np.vstack((all_X,X)) if all_X.size else X
             all_y = np.hstack((all_y,y)) if all_y.size else y
             all_z = np.hstack((all_z,z)) if all_z.size else z
             all_t = np.hstack((all_t,t)) if all_t.size else t
+            all_u = np.hstack((all_u,u)) if all_u.size else u
 
-        return [all_X, all_z, all_t], all_y
+        return [all_X, all_z, all_t, all_u], all_y
