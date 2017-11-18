@@ -6,12 +6,22 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from optparse import OptionParser
 
+parser = OptionParser()
+parser.add_option("-i", "--inFile", dest="input_filename",
+                  help="file to load data from",default="new_ak5.pkl")
+parser.add_option("-m", "--modelFile", dest="model_filename",
+                  help="file to load model from",default="model_eta_dense_pt_dense_updatedJuly14")
+parser.add_option("-o", "--outFile", dest="output_filename",
+                  help="file to save mode to (leave off extension)",default="model_ak5_eta_dense_pt_dense")
+
+(options, args) = parser.parse_args()
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-model = loadModel('model_eta_dense_pt_dense_updatedJuly14')
+model = loadModel(options.model_filename)
 model.summary()
 
-df = pd.read_pickle('new_ak5.pkl')
+df = pd.read_pickle(options.input_filename)
 
 scaler = StandardScaler()
 df['jet_eta_scaled'] = df['jet_eta'] / 2.5
@@ -50,9 +60,9 @@ plt.draw()
 fig.savefig('ak5_training_summary.png',dpi=100)
 
 model_json = model.to_json()
-with open("model_ak5_eta_dense_pt_dense_updatedSept19.json", "w") as json_file:
+with open(options.ouput_filename+".json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_ak5_eta_dense_pt_dense_updatedSept19.h5")
+model.save_weights(options.output_filename+".h5")
 print("Saved model to disk")
 
