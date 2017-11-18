@@ -70,8 +70,6 @@ def plotJet(df_dict_jet, df_dict_cand, process='TT',njets_to_plot=-1, nx=30, ny=
     plt.xlabel('eta')
     plt.ylabel('phi')
     plt.show()
-<<<<<<< HEAD
-=======
 
 def plot_JES(conv_model, verbose):
     colors = cycle(['seagreen','cyan', 'indigo', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
@@ -205,8 +203,6 @@ def plot_JES(conv_model, verbose):
     plt.legend(loc="upper right")
     plt.savefig("jec_vs_jetetascaled.pdf")
 
->>>>>>> 3c1cb948f900fcc22a083390bff30c3f1922e8fe
-    
 def plot_ROC_curves(conv_model):
     colors = cycle(['cyan', 'indigo', 'seagreen', 'yellow', 'blue', 'darkorange', 'red', 'black', 'green', 'brown'])
     #Plot the ROC curves for the training above
