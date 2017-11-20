@@ -50,13 +50,14 @@ print "LOADING MODEL"
 model = loadModel(options.model_filename)
 model.summary()
 
-model.compile(optimizer='adam', loss='mse', metrics=['accuracy','mse','msle'])
+model.compile(optimizer='adam', loss='mse', weighted_metrics=['accuracy','mse','msle'])
 
 from keras.callbacks import EarlyStopping 
 early_stopping = EarlyStopping(monitor='val_loss', patience=20)
 
-history=model.fit(inputs_train, np.array(df_train['jes_truth']), validation_data=(inputs_test, np.array(df_test['jes_truth'])), 
-                    nb_epoch=100, batch_size=1024, verbose=1)#, callbacks=[early_stopping])
+history=model.fit(inputs_train, np.array(df_train['jes_truth']), sample_weight=np.array(df_train['mcweight']), 
+                  validation_data=(inputs_test, np.array(df_test['jes_truth']),np.array(df_test['mcweight'])), 
+                  nb_epoch=3, batch_size=1024, verbose=1)#, callbacks=[early_stopping])
 
 val_loss = np.asarray(history.history['val_loss'])
 loss = np.asarray(history.history['loss'])
